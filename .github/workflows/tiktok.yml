@@ -1,29 +1,19 @@
-name: TikTok Feed
+name: Discord Test Message
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "0 * * * *"   # co 60 minut
   workflow_dispatch:
 
 jobs:
-  run:
+  send-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
-        run: |
-          pip install requests
-
-      - name: Run TikTok scraper
+      - name: Send Test Message
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          python tiktok.py
+          curl -H "Content-Type: application/json" \
+               -d '{"content": "Test"}' \
+               "$DISCORD_WEBHOOK"
