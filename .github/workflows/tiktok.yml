@@ -6,21 +6,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
+  run:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Install Python
-        uses: actions/setup-python@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Install deps
-        run: pip install requests
+      - name: Install dependencies
+        run: |
+          pip install requests
 
-      - name: Run scraper
+      - name: Run TikTok scraper
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        run: python tiktok.py
+        run: |
+          python tiktok.py
