@@ -31,7 +31,7 @@ def get_latest_video():
         return {
             "id": video["video_id"],
             "title": video.get("title", "No description"),
-            "cover": video.get("cover"),
+            "cover": "https://www.tikwm.com" + video.get("cover", ""),
         }
 
     except Exception as e:
