@@ -7,7 +7,7 @@ TIKTOK_USER = "raddevil76"
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
     requests.post(WEBHOOK_URL, json={"content": msg})
-    print("Wysłano:", msg)
+    print("Sent:", msg)
 
 def get_latest_video():
     try:
@@ -29,12 +29,12 @@ def get_latest_video():
 
         return {
             "id": video["video_id"],
-            "title": video.get("title", "Brak opisu"),
+            "title": video.get("title", "No description"),
             "cover": video.get("cover"),
         }
 
     except Exception as e:
-        print("Błąd API:", e)
+        print("API error:", e)
         return None
 
 def send_embed(video):
@@ -43,7 +43,7 @@ def send_embed(video):
     embed = {
         "embeds": [
             {
-                "title": f"Nowy film od @{TIKTOK_USER}",
+                "title": f"New TikTok video by @{TIKTOK_USER}",
                 "description": video["title"],
                 "url": video_url,
                 "color": 0x00FFFF,
@@ -53,7 +53,7 @@ def send_embed(video):
     }
 
     requests.post(WEBHOOK_URL, json=embed)
-    print("Wysłano embed:", video_url)
+    print("Embed sent:", video_url)
 
 def main():
     video = get_latest_video()
