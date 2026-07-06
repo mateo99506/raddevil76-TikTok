@@ -16,7 +16,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0   # <-- KLUCZOWE, pobiera pełną historię repo
+        fetch-depth: 0   # pełna historia repo
+
+    - name: Switch to main branch
+      run: |
+        git checkout main
 
     - name: Install dependencies
       run: |
@@ -39,11 +43,11 @@ jobs:
           git add last.txt
           git commit -m "Update cache"
 
-          # Pobierz najnowsze zmiany i nałóż commit
-          git pull --rebase
+          # Pobierz najnowsze zmiany z main
+          git pull origin main --rebase
 
-          # Wypchnij commit
-          git push
+          # Wypchnij commit na main
+          git push origin main
         else
           echo "Cache file not found. Skipping commit."
         fi
