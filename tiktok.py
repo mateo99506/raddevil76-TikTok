@@ -3,6 +3,7 @@ import requests
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
+CACHE_FILE = "last.txt"
 
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
@@ -37,6 +38,17 @@ def get_latest_video():
         print("API error:", e)
         return None
 
+def already_posted(video_id):
+    if not os.path.exists(CACHE_FILE):
+        return False
+
+    last = open(CACHE_FILE).read().strip()
+    return last == video_id
+
+def update_cache(video_id):
+    with open(CACHE_FILE, "w") as f:
+        f.write(video_id)
+
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
 
@@ -61,7 +73,12 @@ def main():
         send_no_data("API")
         return
 
+    if already_posted(video["id"]):
+        print("Video already posted. Skipping.")
+        return
+
     send_embed(video)
+    update_cache(video["id"])
 
 if __name__ == "__main__":
     main()
