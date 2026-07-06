@@ -16,42 +16,40 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-
 def get_secuid(username):
-    """Pobiera secUid z SIGI_STATE — najpewniejsza metoda."""
+    print("🔍 Pobieram stronę TikTok…")
     url = f"https://www.tiktok.com/@{username}"
     r = requests.get(url, headers=HEADERS)
 
-    if r.status_code != 200:
-        print("❌ TikTok zwrócił błąd:", r.status_code)
-        return None
+    print("📡 Status strony:", r.status_code)
+    print("📄 Pierwsze 500 znaków HTML:")
+    print(r.text[:500])
 
-    # Wyciągamy JSON z <script id="SIGI_STATE">...</script>
     match = re.search(r'<script id="SIGI_STATE"[^>]*>(.*?)</script>', r.text)
     if not match:
-        print("❌ Nie znaleziono SIGI_STATE.")
+        print("❌ SIGI_STATE nie znaleziony.")
         return None
 
     try:
         sigi = json.loads(match.group(1))
         secuid = sigi["UserModule"]["users"][username]["secUid"]
+        print("✅ secUid:", secuid)
         return secuid
     except Exception as e:
-        print("❌ Błąd podczas parsowania SIGI_STATE:", e)
+        print("❌ Błąd parsowania SIGI_STATE:", e)
         return None
 
-
 def get_latest_video(secuid):
-    """Pobiera najnowszy film z API TikToka."""
+    print("🎬 Pobieram najnowszy film…")
     api_url = (
         "https://www.tiktok.com/api/post/item_list/"
         f"?aid=1988&count=1&secUid={secuid}"
     )
 
     r = requests.get(api_url, headers=HEADERS)
-    if r.status_code != 200:
-        print("❌ API zwróciło błąd:", r.status_code)
-        return None
+    print("📡 Status API:", r.status_code)
+    print("📄 Pierwsze 500 znaków JSON:")
+    print(r.text[:500])
 
     try:
         data = r.json()
@@ -63,6 +61,7 @@ def get_latest_video(secuid):
 
         video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
 
+        print("🎯 Najnowszy film:", video_url)
         return {
             "url": video_url,
             "desc": desc,
@@ -70,13 +69,11 @@ def get_latest_video(secuid):
         }
 
     except Exception as e:
-        print("❌ Błąd podczas parsowania JSON:", e)
-        print("API response:", r.text[:500])
+        print("❌ Błąd parsowania JSON:", e)
         return None
 
-
 def send_embed(video):
-    """Wysyła embed na Discord."""
+    print("📤 Wysyłam embed na Discord…")
     payload = {
         "embeds": [
             {
@@ -91,19 +88,17 @@ def send_embed(video):
 
     r = requests.post(WEBHOOK_URL, json=payload)
     print("📡 Webhook status:", r.status_code)
-
+    print("📄 Odpowiedź Discorda:", r.text)
 
 def main():
-    print("🔍 Pobieram secUid…")
     secuid = get_secuid(TIKTOK_USER)
     if not secuid:
-        print("❌ secUid nie został pobrany.")
+        print("❌ secUid nie został pobrany — STOP")
         return
 
-    print("🎬 Pobieram najnowszy film…")
     latest = get_latest_video(secuid)
     if not latest:
-        print("❌ Nie udało się pobrać filmu.")
+        print("❌ Nie udało się pobrać filmu — STOP")
         return
 
     cache_file = "last.txt"
@@ -113,12 +108,11 @@ def main():
         last = open(cache_file).read().strip()
 
     if latest["url"] != last:
-        print("📢 Wysyłam nowy film:", latest["url"])
+        print("📢 Nowy film — wysyłam!")
         send_embed(latest)
         open(cache_file, "w").write(latest["url"])
     else:
         print("ℹ️ Brak nowych filmów.")
-
 
 if __name__ == "__main__":
     main()
