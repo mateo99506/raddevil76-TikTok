@@ -39,6 +39,7 @@ def get_latest_video():
         return None
 
 def already_posted(video_id):
+    # If file doesn't exist → treat as not posted
     if not os.path.exists(CACHE_FILE):
         return False
 
@@ -46,6 +47,7 @@ def already_posted(video_id):
     return last == video_id
 
 def update_cache(video_id):
+    # Create file if missing and write the ID
     with open(CACHE_FILE, "w") as f:
         f.write(video_id)
 
@@ -73,10 +75,19 @@ def main():
         send_no_data("API")
         return
 
+    # If file doesn't exist → create it and save current video
+    if not os.path.exists(CACHE_FILE):
+        print("Cache file missing. Creating new cache.")
+        update_cache(video["id"])
+        send_embed(video)
+        return
+
+    # If file exists → check if video is new
     if already_posted(video["id"]):
         print("Video already posted. Skipping.")
         return
 
+    # New video → send and update cache
     send_embed(video)
     update_cache(video["id"])
 
