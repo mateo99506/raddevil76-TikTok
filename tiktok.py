@@ -3,12 +3,11 @@ import requests
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
-CACHE_FILE = "last.txt"
 
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
     requests.post(WEBHOOK_URL, json={"content": msg})
-    print("Sent:", msg)
+    print("Wysłano:", msg)
 
 def get_latest_video():
     try:
@@ -31,25 +30,12 @@ def get_latest_video():
         return {
             "id": video["video_id"],
             "title": video.get("title", "No description"),
-            "cover": "https://www.tikwm.com" + video.get("cover", ""),
+            "cover": video.get("cover"),
         }
 
     except Exception as e:
-        print("API error:", e)
+        print("Błąd API:", e)
         return None
-
-def already_posted(video_id):
-    # If file doesn't exist → treat as not posted
-    if not os.path.exists(CACHE_FILE):
-        return False
-
-    last = open(CACHE_FILE).read().strip()
-    return last == video_id
-
-def update_cache(video_id):
-    # Create file if missing and write the ID
-    with open(CACHE_FILE, "w") as f:
-        f.write(video_id)
 
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
@@ -75,21 +61,7 @@ def main():
         send_no_data("API")
         return
 
-    # If file doesn't exist → create it and save current video
-    if not os.path.exists(CACHE_FILE):
-        print("Cache file missing. Creating new cache.")
-        update_cache(video["id"])
-        send_embed(video)
-        return
-
-    # If file exists → check if video is new
-    if already_posted(video["id"]):
-        print("Video already posted. Skipping.")
-        return
-
-    # New video → send and update cache
     send_embed(video)
-    update_cache(video["id"])
 
 if __name__ == "__main__":
     main()
