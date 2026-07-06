@@ -18,7 +18,6 @@ def get_latest_video():
             return None
 
         data = r.json()
-
         if data.get("data") is None:
             return None
 
@@ -27,22 +26,42 @@ def get_latest_video():
             return None
 
         video = videos[0]
-        video_id = video["video_id"]
 
-        return f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
+        return {
+            "id": video["video_id"],
+            "title": video.get("title", "Brak opisu"),
+            "cover": video.get("cover"),
+        }
 
     except Exception as e:
         print("Błąd API:", e)
         return None
 
+def send_embed(video):
+    video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
+
+    embed = {
+        "embeds": [
+            {
+                "title": f"Nowy film od @{TIKTOK_USER}",
+                "description": video["title"],
+                "url": video_url,
+                "color": 0x00FFFF,
+                "image": {"url": video["cover"]},
+            }
+        ]
+    }
+
+    requests.post(WEBHOOK_URL, json=embed)
+    print("Wysłano embed:", video_url)
+
 def main():
-    video_url = get_latest_video()
-    if not video_url:
+    video = get_latest_video()
+    if not video:
         send_no_data("API")
         return
 
-    requests.post(WEBHOOK_URL, json={"content": video_url})
-    print("Wysłano link:", video_url)
+    send_embed(video)
 
 if __name__ == "__main__":
     main()
