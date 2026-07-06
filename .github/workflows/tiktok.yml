@@ -1,4 +1,4 @@
-      - name: Run TikTok scraper
+        name: Run TikTok scraper
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
