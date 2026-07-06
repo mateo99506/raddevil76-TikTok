@@ -17,6 +17,14 @@ jobs:
         run: |
           pip install requests
           
+      - name: Commit cache
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add last.txt
+          git commit -m "Update cache"
+          git push
+          
       - name: Run TikTok scraper
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
