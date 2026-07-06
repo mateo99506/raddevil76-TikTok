@@ -2,53 +2,47 @@ import os
 import requests
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-SECUID = os.getenv("TIKTOK_SECUID")
 TIKTOK_USER = "raddevil76"
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    )
-}
 
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
     requests.post(WEBHOOK_URL, json={"content": msg})
+    print("Wysłano:", msg)
 
-def get_latest_video(secuid):
+def get_latest_video():
     try:
-        api_url = (
-            "https://www.tiktok.com/api/post/item_list/"
-            f"?aid=1988&count=1&secUid={secuid}"
-        )
-        r = requests.get(api_url, headers=HEADERS, timeout=10)
+        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
+        r = requests.get(api_url, timeout=10)
+
         if r.status_code != 200:
             return None
 
         data = r.json()
-        if "itemList" not in data or not data["itemList"]:
+
+        if data.get("data") is None:
             return None
 
-        item = data["itemList"][0]
-        video_id = item["id"]
+        videos = data["data"].get("videos")
+        if not videos:
+            return None
+
+        video = videos[0]
+        video_id = video["video_id"]
+
         return f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
 
-    except:
+    except Exception as e:
+        print("Błąd API:", e)
         return None
 
 def main():
-    if not SECUID:
-        send_no_data("missing secUid")
-        return
-
-    video_url = get_latest_video(SECUID)
+    video_url = get_latest_video()
     if not video_url:
         send_no_data("API")
         return
 
     requests.post(WEBHOOK_URL, json={"content": video_url})
+    print("Wysłano link:", video_url)
 
 if __name__ == "__main__":
     main()
