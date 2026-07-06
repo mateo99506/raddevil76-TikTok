@@ -1,5 +1,8 @@
 name: TikTok Scraper
 
+permissions:
+  contents: write
+  
 on:
   schedule:
     - cron: "*/10 * * * *"
