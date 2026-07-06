@@ -2,7 +2,7 @@ name: TikTok Scraper
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/2 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -17,17 +17,22 @@ jobs:
         run: |
           pip install requests
           
-      - name: Commit cache
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add last.txt
-          git commit -m "Update cache"
-          git push
-          
       - name: Run TikTok scraper
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           TIKTOK_SECUID: ${{ secrets.TIKTOK_SECUID }}
         run: |
           python tiktok.py
+
+      - name: Commit cache file if exists
+        run: |
+          if [ -f last.txt ]; then
+            echo "Cache file found. Committing..."
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git add last.txt
+            git commit -m "Update cache"
+            git push
+          else
+            echo "Cache file not found. Skipping commit."
+          fi
