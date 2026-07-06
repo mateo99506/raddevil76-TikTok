@@ -20,5 +20,6 @@ jobs:
       - name: Run TikTok scraper
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TIKTOK_SECUID: ${{ secrets.TIKTOK_SECUID }}
         run: |
           python tiktok.py
