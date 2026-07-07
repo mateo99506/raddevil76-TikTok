@@ -5,19 +5,13 @@ WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
 MEMORY_FILE = "memory.txt"
 
-# --- Ensure memory file exists (create empty file if missing) ---
+# --- Ensure memory file exists ---
 def ensure_memory_file():
     if not os.path.exists(MEMORY_FILE):
-        # Create empty file
         open(MEMORY_FILE, "w").close()
         print("Created empty memory.txt")
     else:
         print("memory.txt already exists")
-
-def send_no_data(reason=""):
-    msg = "No data" if not reason else f"No data ({reason})"
-    requests.post(WEBHOOK_URL, json={"content": msg})
-    print("Sent:", msg)
 
 def get_latest_video():
     try:
@@ -77,12 +71,11 @@ def send_embed(video):
     print("Embed sent:", video_url)
 
 def main():
-    # Ensure memory file exists before anything else
     ensure_memory_file()
 
     video = get_latest_video()
     if not video:
-        send_no_data("API")
+        print("No video data")
         return
 
     last_id = load_memory()
