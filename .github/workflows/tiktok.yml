@@ -2,7 +2,7 @@ name: TikTok Scraper
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,9 +13,9 @@ jobs:
       contents: write
 
     steps:
-    - name: Manual checkout (no Node.js)
+    - name: Manual checkout (authenticated)
       run: |
-        git clone https://github.com/${GITHUB_REPOSITORY}.git repo
+        git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git repo
         cd repo
         cp -r . ../
         cd ..
@@ -26,21 +26,6 @@ jobs:
         sudo apt-get install -y python3 python3-pip
         python3 -m pip install --upgrade pip
         pip install requests
-
-    - name: Diagnostyka środowiska
-      run: |
-        echo "=== Bieżący katalog ==="
-        pwd
-        echo "=== Lista plików ==="
-        ls -la
-        echo "=== Uprawnienia katalogu ==="
-        stat .
-        echo "=== Zmienna DISCORD_WEBHOOK ==="
-        if [ -z "$DISCORD_WEBHOOK" ]; then
-          echo "DISCORD_WEBHOOK jest pusta!"
-        else
-          echo "DISCORD_WEBHOOK istnieje (wartość ukryta)"
-        fi
 
     - name: Run TikTok scraper
       env:
