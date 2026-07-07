@@ -5,6 +5,7 @@ WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
 MEMORY_FILE = "memory.txt"
 
+
 # --- Ensure memory file exists ---
 def ensure_memory_file():
     if not os.path.exists(MEMORY_FILE):
@@ -13,20 +14,52 @@ def ensure_memory_file():
     else:
         print("memory.txt already exists")
 
+
+# --- Clean TikTok cover URL (fixes TikWM double-URL bug) ---
+def clean_cover_url(cover):
+    if not cover:
+        return None
+
+    # If TikWM returns a double URL like:
+    # "https://www.tikwm.comhttps://p16-common-sign.tiktokcdn-eu.com/..."
+    if "https://" in cover:
+        parts = cover.split("https://")
+        # parts[0] = empty or garbage
+        # parts[1] = first valid URL
+        # parts[2] = second URL (rare)
+        if len(parts) >= 2:
+            return "https://" + parts[1]
+
+    # If TikWM returns a path starting with "/"
+    if cover.startswith("/"):
+        return "https://www.tikwm.com" + cover
+
+    # If TikWM returns a normal full URL
+    if cover.startswith("http"):
+        return cover
+
+    # Fallback
+    return "https://www.tikwm.com" + cover
+
+
+# --- Fetch latest TikTok video ---
 def get_latest_video():
     try:
         api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
         r = requests.get(api_url, timeout=10)
 
         if r.status_code != 200:
+            print("API error:", r.status_code)
             return None
 
         data = r.json()
         if data.get("data") is None:
+            print("API returned no data")
             return None
 
         videos = data["data"].get("videos")
         if not videos:
+            print("No videos found")
             return None
 
         video = videos[0]
@@ -34,13 +67,15 @@ def get_latest_video():
         return {
             "id": video["video_id"],
             "title": video.get("title", "No description"),
-            "cover": "https://www.tikwm.com" + video.get("cover", ""),
+            "cover": video.get("cover", ""),
         }
 
     except Exception as e:
-        print("API error:", e)
+        print("API exception:", e)
         return None
 
+
+# --- Load memory ---
 def load_memory():
     try:
         with open(MEMORY_FILE, "r") as f:
@@ -48,20 +83,18 @@ def load_memory():
     except:
         return None
 
+
+# --- Save memory ---
 def save_memory(video_id):
     with open(MEMORY_FILE, "w") as f:
         f.write(video_id)
 
+
+# --- Send Discord embed ---
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
 
-    cover_url = video.get("cover", "")
-
-    # Naprawa błędu: poprawny URL obrazka
-    if cover_url.startswith("http"):
-        final_cover = cover_url
-    else:
-        final_cover = "https://www.tikwm.com" + cover_url
+    final_cover = clean_cover_url(video.get("cover", ""))
 
     embed = {
         "embeds": [
@@ -70,7 +103,7 @@ def send_embed(video):
                 "description": video["title"],
                 "url": video_url,
                 "color": 0x00FFFF,
-                "image": {"url": final_cover},
+                "image": {"url": final_cover} if final_cover else {},
             }
         ]
     }
@@ -81,6 +114,8 @@ def send_embed(video):
     print("Discord status:", resp.status_code)
     print("Discord response:", resp.text)
 
+
+# --- Main ---
 def main():
     ensure_memory_file()
 
@@ -97,6 +132,7 @@ def main():
 
     send_embed(video)
     save_memory(video["id"])
+
 
 if __name__ == "__main__":
     main()
