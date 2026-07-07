@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
@@ -81,9 +82,10 @@ def main():
     # Save IDs to file (overwrite)
     save_videos_to_file(videos)
 
-    # Send each video in a separate embed
+    # Send each video in a separate embed with delay
     for video in videos:
         send_embed(video)
+        time.sleep(3)  # opóźnienie 3 sekundy
 
 
 if __name__ == "__main__":
