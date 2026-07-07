@@ -49,13 +49,14 @@ jobs:
         python3 tiktok.py
 
     - name: Save memory.txt
-        run: |
-          if [ -f memory.txt ]; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git add memory.txt
-            git commit -m "Update memory"
-            git push
-          else
-            echo "memory.txt not found, nothing to commit."
-          fi
+      run: |
+        if [ -f memory.txt ]; then
+          echo "memory.txt found — committing."
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add memory.txt
+          git commit -m "Update memory"
+          git push
+        else
+          echo "memory.txt not found — nothing to commit."
+        fi
