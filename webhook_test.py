@@ -6,7 +6,7 @@ WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 print("Using webhook:", WEBHOOK_URL)
 
 payload = {
-    "content": "🔧 Test webhooka — jeśli widzisz tę wiadomość, wszystko działa!"
+    "content": "🔧 Webhook Test!"
 }
 
 try:
