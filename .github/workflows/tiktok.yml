@@ -8,16 +8,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Install dependencies
+    - name: Manual checkout (no Node.js)
       run: |
-        python -m pip install --upgrade pip
+        git clone https://github.com/${GITHUB_REPOSITORY}.git repo
+        cd repo
+        cp -r . ../
+        cd ..
+
+    - name: Install Python manually (no Node.js)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip
+        python3 -m pip install --upgrade pip
         pip install requests
 
     - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       run: |
-        python tiktok.py
+        python3 tiktok.py
