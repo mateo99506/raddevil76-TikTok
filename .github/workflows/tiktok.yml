@@ -10,12 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clone repository (safe method)
+    - name: Clone repository into workspace (no Node.js)
       run: |
-        cd ..
-        git clone https://github.com/${GITHUB_REPOSITORY}.git repo
-        cp -r repo/* ${GITHUB_WORKSPACE}/
+        git clone https://github.com/${GITHUB_REPOSITORY}.git ${GITHUB_WORKSPACE}
         ls -la ${GITHUB_WORKSPACE}
+
+    - name: Create empty memory.txt if missing
+      run: |
+        if [ ! -f ${GITHUB_WORKSPACE}/memory.txt ]; then
+          echo "Creating empty memory.txt"
+          touch ${GITHUB_WORKSPACE}/memory.txt
+        else
+          echo "memory.txt already exists"
+        fi
 
     - name: Download memory.txt artifact (if exists)
       uses: actions/download-artifact@v4
