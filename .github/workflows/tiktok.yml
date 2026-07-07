@@ -9,6 +9,9 @@ jobs:
   run:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write   # pozwala Pythonowi tworzyć i nadpisywać pliki w repo
+
     steps:
     - name: Manual checkout (no Node.js)
       run: |
@@ -17,7 +20,7 @@ jobs:
         cp -r . ../
         cd ..
 
-    - name: Install Python manually (no Node.js)
+    - name: Install Python manually
       run: |
         sudo apt-get update
         sudo apt-get install -y python3 python3-pip
