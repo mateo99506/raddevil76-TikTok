@@ -12,10 +12,9 @@ jobs:
     steps:
     - name: Clone repository (no Node.js)
       run: |
-        git clone https://github.com/${GITHUB_REPOSITORY}.git repo
-        cd repo
-        cp -r . ../
-        cd ..
+        rm -rf *
+        git clone https://github.com/${GITHUB_REPOSITORY}.git .
+        ls -la
 
     - name: Download memory.txt artifact (if exists)
       uses: actions/download-artifact@v4
