@@ -10,22 +10,16 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
+    - name: Download memory.txt artifact (if exists)
+      uses: actions/download-artifact@v4
+      with:
+        name: memory
+        path: .
 
-    - name: Manual checkout via SSH (no Node.js)
-      run: |
-        git clone git@github.com:${GITHUB_REPOSITORY}.git repo
-        cd repo
-        cp -r . ../
-        cd ..
+      continue-on-error: true
 
     - name: Install Python manually
       run: |
@@ -40,15 +34,8 @@ jobs:
       run: |
         python3 tiktok.py
 
-    - name: Save memory.txt
-      run: |
-        if [ -f memory.txt ]; then
-          echo "memory.txt found — committing."
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add memory.txt
-          git commit -m "Update memory"
-          git push
-        else
-          echo "memory.txt not found — nothing to commit."
-        fi
+    - name: Upload updated memory.txt
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory
+        path: memory.txt
