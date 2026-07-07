@@ -9,16 +9,19 @@ jobs:
   run:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-
     steps:
+    - name: Clone repository (no Node.js)
+      run: |
+        git clone https://github.com/${GITHUB_REPOSITORY}.git repo
+        cd repo
+        cp -r . ../
+        cd ..
+
     - name: Download memory.txt artifact (if exists)
       uses: actions/download-artifact@v4
       with:
         name: memory
         path: .
-
       continue-on-error: true
 
     - name: Install Python manually
