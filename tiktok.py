@@ -67,8 +67,11 @@ def send_embed(video):
         ]
     }
 
-    requests.post(WEBHOOK_URL, json=embed)
-    print("Embed sent:", video_url)
+    print("Sending embed:", embed)
+
+    resp = requests.post(WEBHOOK_URL, json=embed)
+    print("Discord status:", resp.status_code)
+    print("Discord response:", resp.text)
 
 def main():
     ensure_memory_file()
