@@ -10,28 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Clone repository into workspace (no Node.js)
+    - name: Clone repository with PAT
       run: |
-        git clone https://github.com/${GITHUB_REPOSITORY}.git ${GITHUB_WORKSPACE}
+        git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git repo
+        cp -r repo/* ${GITHUB_WORKSPACE}/
         ls -la ${GITHUB_WORKSPACE}
 
-    - name: Create empty memory.txt if missing
+    - name: Ensure memory.txt exists
       run: |
         if [ ! -f ${GITHUB_WORKSPACE}/memory.txt ]; then
           echo "Creating empty memory.txt"
           touch ${GITHUB_WORKSPACE}/memory.txt
-        else
-          echo "memory.txt already exists"
         fi
 
-    - name: Download memory.txt artifact (if exists)
-      uses: actions/download-artifact@v4
-      with:
-        name: memory
-        path: ${GITHUB_WORKSPACE}
-      continue-on-error: true
-
-    - name: Install Python manually
+    - name: Install Python
       run: |
         sudo apt-get update
         sudo apt-get install -y python3 python3-pip
@@ -44,8 +36,11 @@ jobs:
       run: |
         python3 ${GITHUB_WORKSPACE}/tiktok.py
 
-    - name: Upload updated memory.txt
-      uses: actions/upload-artifact@v4
-      with:
-        name: memory
-        path: ${GITHUB_WORKSPACE}/memory.txt
+    - name: Commit updated memory.txt to repo
+      run: |
+        cd ${GITHUB_WORKSPACE}
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add memory.txt
+        git commit -m "Update memory" || echo "No changes to commit"
+        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
