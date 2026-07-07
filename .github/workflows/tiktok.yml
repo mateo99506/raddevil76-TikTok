@@ -13,14 +13,14 @@ jobs:
     - name: Clone repository with PAT
       run: |
         git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git repo
-        cp -r repo/* ${GITHUB_WORKSPACE}/
-        ls -la ${GITHUB_WORKSPACE}
+        ls -la repo
 
     - name: Ensure memory.txt exists
       run: |
-        if [ ! -f ${GITHUB_WORKSPACE}/memory.txt ]; then
+        cd repo
+        if [ ! -f memory.txt ]; then
           echo "Creating empty memory.txt"
-          touch ${GITHUB_WORKSPACE}/memory.txt
+          touch memory.txt
         fi
 
     - name: Install Python
@@ -34,11 +34,12 @@ jobs:
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       run: |
-        python3 ${GITHUB_WORKSPACE}/tiktok.py
+        cd repo
+        python3 tiktok.py
 
     - name: Commit updated memory.txt to repo
       run: |
-        cd ${GITHUB_WORKSPACE}
+        cd repo
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add memory.txt
