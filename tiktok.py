@@ -3,11 +3,12 @@ import requests
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
+MEMORY_FILE = "memory.txt"
 
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
     requests.post(WEBHOOK_URL, json={"content": msg})
-    print("Wysłano:", msg)
+    print("Sent:", msg)
 
 def get_latest_video():
     try:
@@ -30,12 +31,25 @@ def get_latest_video():
         return {
             "id": video["video_id"],
             "title": video.get("title", "No description"),
-            "cover": video.get("cover"),
+            "cover": "https://www.tikwm.com" + video.get("cover", ""),
         }
 
     except Exception as e:
-        print("Błąd API:", e)
+        print("API error:", e)
         return None
+
+def load_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return None
+    try:
+        with open(MEMORY_FILE, "r") as f:
+            return f.read().strip()
+    except:
+        return None
+
+def save_memory(video_id):
+    with open(MEMORY_FILE, "w") as f:
+        f.write(video_id)
 
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
@@ -61,7 +75,14 @@ def main():
         send_no_data("API")
         return
 
+    last_id = load_memory()
+
+    if last_id == video["id"]:
+        print("Video already sent. Skipping.")
+        return
+
     send_embed(video)
+    save_memory(video["id"])
 
 if __name__ == "__main__":
     main()
