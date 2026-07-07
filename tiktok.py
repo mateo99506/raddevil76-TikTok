@@ -3,15 +3,18 @@ import requests
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
+SAVE_FILE = "last.txt"
+
 
 def send_no_data(reason=""):
     msg = "No data" if not reason else f"No data ({reason})"
     requests.post(WEBHOOK_URL, json={"content": msg})
-    print("Wysłano:", msg)
+    print("Sent:", msg)
 
-def get_latest_video():
+
+def get_latest_videos(count=3):
     try:
-        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
+        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count={count}"
         r = requests.get(api_url, timeout=10)
 
         if r.status_code != 200:
@@ -25,17 +28,30 @@ def get_latest_video():
         if not videos:
             return None
 
-        video = videos[0]
+        result = []
+        for video in videos[:count]:
+            result.append({
+                "id": video["video_id"],
+                "title": video.get("title", "No description"),
+                "cover": "https://www.tikwm.com" + video.get("cover", ""),
+            })
 
-        return {
-            "id": video["video_id"],
-            "title": video.get("title", "No description"),
-            "cover": video.get("cover"),
-        }
+        return result
 
     except Exception as e:
-        print("Błąd API:", e)
+        print("API error:", e)
         return None
+
+
+def save_videos_to_file(videos):
+    try:
+        with open(SAVE_FILE, "w", encoding="utf-8") as f:
+            for v in videos:
+                f.write(v["id"] + "\n")
+        print("Saved video IDs to last.txt")
+    except Exception as e:
+        print("File save error:", e)
+
 
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
@@ -55,13 +71,20 @@ def send_embed(video):
     requests.post(WEBHOOK_URL, json=embed)
     print("Embed sent:", video_url)
 
+
 def main():
-    video = get_latest_video()
-    if not video:
+    videos = get_latest_videos(count=3)
+    if not videos:
         send_no_data("API")
         return
 
-    send_embed(video)
+    # Save IDs to file (overwrite)
+    save_videos_to_file(videos)
+
+    # Send each video in a separate embed
+    for video in videos:
+        send_embed(video)
+
 
 if __name__ == "__main__":
     main()
