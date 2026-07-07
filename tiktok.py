@@ -55,6 +55,14 @@ def save_memory(video_id):
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
 
+    cover_url = video.get("cover", "")
+
+    # Naprawa błędu: poprawny URL obrazka
+    if cover_url.startswith("http"):
+        final_cover = cover_url
+    else:
+        final_cover = "https://www.tikwm.com" + cover_url
+
     embed = {
         "embeds": [
             {
@@ -62,7 +70,7 @@ def send_embed(video):
                 "description": video["title"],
                 "url": video_url,
                 "color": 0x00FFFF,
-                "image": {"url": video["cover"]},
+                "image": {"url": final_cover},
             }
         ]
     }
