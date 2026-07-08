@@ -80,52 +80,40 @@ def get_latest_video():
 import re
 import json
 
-# --- Fetch TikTok followers from HTML ---
-def get_user_stats_html():
+# --- TikTok followers ---
+def get_user_stats_rapidapi():
     try:
-        url = f"https://www.tiktok.com/@{TIKTOK_USER}"
+        url = "https://tiktok-scraper2.p.rapidapi.com/user/info"
+        query = {"username": TIKTOK_USER}
+
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            "x-rapidapi-key": os.getenv("RAPIDAPI_KEY"),
+            "x-rapidapi-host": "tiktok-scraper2.p.rapidapi.com"
         }
 
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, params=query, timeout=10)
 
         if r.status_code != 200:
-            print("HTML stats error:", r.status_code)
+            print("RapidAPI error:", r.status_code, r.text)
             return None
 
-        html = r.text
+        data = r.json()
 
-        # Extract JSON inside <script id="SIGI_STATE"> ... </script>
-        match = re.search(r'<script id="SIGI_STATE"[^>]*>(.*?)</script>', html)
-        if not match:
-            print("SIGI_STATE not found")
-            return None
+        user_info = data.get("userInfo", {})
+        stats = user_info.get("stats", {})
 
-        json_text = match.group(1)
+        followers = stats.get("followerCount", 0)
+        following = stats.get("followingCount", 0)
+        likes = stats.get("heartCount", 0)
 
-        data = json.loads(json_text)
-
-        # Navigate TikTok's HTML JSON structure
-        user_module = data.get("UserModule", {})
-        users = user_module.get("users", {})
-        stats = user_module.get("stats", {})
-
-        # Find the correct user entry
-        if TIKTOK_USER in stats:
-            followers = stats[TIKTOK_USER].get("followerCount", 0)
-            return {"followers": followers}
-
-        # Fallback: try any user entry
-        for key in stats:
-            if "followerCount" in stats[key]:
-                return {"followers": stats[key]["followerCount"]}
-
-        print("Followers not found in HTML JSON")
-        return None
+        return {
+            "followers": followers,
+            "following": following,
+            "likes": likes
+        }
 
     except Exception as e:
-        print("HTML stats exception:", e)
+        print("RapidAPI exception:", e)
         return None
 
 # --- Load memory ---
@@ -149,8 +137,8 @@ def send_embed(video):
 
     final_cover = clean_cover_url(video.get("cover", ""))
 
-    # Fetch followers from HTML (reliable)
-    stats = get_user_stats_html()
+    # Followers
+    stats = get_user_stats_rapidapi()
     followers = stats["followers"] if stats else 0
 
     embed = {
