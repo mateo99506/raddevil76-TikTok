@@ -33,6 +33,7 @@ jobs:
     - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       run: |
         cd repo
         python3 tiktok.py
@@ -45,3 +46,11 @@ jobs:
         git add memory.txt
         git commit -m "Update memory" || echo "No changes to commit"
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
+
+
+
+
+
+
+
+
