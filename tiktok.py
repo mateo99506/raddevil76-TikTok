@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
@@ -20,24 +21,21 @@ def clean_cover_url(cover):
     if not cover:
         return None
 
-    # If TikWM returns a double URL like:
-    # "https://www.tikwm.comhttps://p16-common-sign.tiktokcdn-eu.com/..."
+    # Fix double URL
     if "https://" in cover:
         parts = cover.split("https://")
         if len(parts) >= 2:
             cover = "https://" + parts[1]
 
-    # If TikWM returns a path starting with "/"
+    # If path starts with "/"
     if cover.startswith("/"):
         cover = "https://www.tikwm.com" + cover
 
-    # If TikWM returns a normal full URL
-    if cover.startswith("http"):
-        pass
-    else:
+    # If not a full URL
+    if not cover.startswith("http"):
         cover = "https://www.tikwm.com" + cover
 
-    # --- NEW: Automatic HEIC → JPG conversion ---
+    # HEIC → JPG
     if ".heic" in cover:
         print("HEIC detected, converting to JPG:", cover)
         cover = cover.replace(".heic", ".jpg")
@@ -45,10 +43,10 @@ def clean_cover_url(cover):
     return cover
 
 
-# --- Fetch latest TikTok video ---
-def get_latest_video():
+# --- Fetch last 9 TikTok videos ---
+def get_latest_videos():
     try:
-        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
+        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=9"
         r = requests.get(api_url, timeout=10)
 
         if r.status_code != 200:
@@ -65,32 +63,37 @@ def get_latest_video():
             print("No videos found")
             return None
 
-        video = videos[0]
+        result = []
+        for v in videos:
+            result.append({
+                "id": v["video_id"],
+                "title": v.get("title", "No description"),
+                "cover": v.get("cover", ""),
+            })
 
-        return {
-            "id": video["video_id"],
-            "title": video.get("title", "No description"),
-            "cover": video.get("cover", ""),
-        }
+        return result
 
     except Exception as e:
         print("API exception:", e)
         return None
 
 
-# --- Load memory ---
+# --- Load memory (list of IDs) ---
 def load_memory():
     try:
         with open(MEMORY_FILE, "r") as f:
-            return f.read().strip()
+            content = f.read().strip()
+            if not content:
+                return []
+            return content.split("\n")
     except:
-        return None
+        return []
 
 
-# --- Save memory ---
-def save_memory(video_id):
+# --- Save memory (list of IDs) ---
+def save_memory(id_list):
     with open(MEMORY_FILE, "w") as f:
-        f.write(video_id)
+        f.write("\n".join(id_list))
 
 
 # --- Send Discord embed ---
@@ -122,19 +125,36 @@ def send_embed(video):
 def main():
     ensure_memory_file()
 
-    video = get_latest_video()
-    if not video:
+    videos = get_latest_videos()
+    if not videos:
         print("No video data")
         return
 
-    last_id = load_memory()
+    latest_ids = [v["id"] for v in videos]
+    memory_ids = load_memory()
 
-    if last_id == video["id"]:
-        print("Video already sent. Skipping.")
-        return
+    print("Memory IDs:", memory_ids)
+    print("Latest IDs:", latest_ids)
 
-    send_embed(video)
-    save_memory(video["id"])
+    # Find new videos
+    new_videos = [v for v in videos if v["id"] not in memory_ids]
+
+    if not new_videos:
+        print("No new videos found. Skipping.")
+    else:
+        print(f"Found {len(new_videos)} new videos.")
+
+        for index, v in enumerate(new_videos):
+            send_embed(v)
+
+            # --- NEW: 2-second delay between messages ---
+            if index < len(new_videos) - 1:
+                print("Waiting 2 seconds before next send...")
+                time.sleep(2)
+
+    # Overwrite memory with the latest 9 IDs
+    save_memory(latest_ids)
+    print("Memory updated.")
 
 
 if __name__ == "__main__":
