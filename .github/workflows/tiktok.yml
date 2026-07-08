@@ -1,9 +1,9 @@
 name: TikTok Scraper
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
+#  schedule:
+#    - cron: "*/15 * * * *"
+#  workflow_dispatch:
   repository_dispatch:
 
 jobs:
