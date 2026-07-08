@@ -144,7 +144,7 @@ def main():
     else:
         print(f"Found {len(new_videos)} new videos.")
 
-        for index, v in enumerate(new_videos):
+        for index, v in enumerate(reversed(new_videos)):
             send_embed(v)
 
             # --- NEW: 2-second delay between messages ---
