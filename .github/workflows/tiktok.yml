@@ -33,7 +33,6 @@ jobs:
     - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
       run: |
         cd repo
         python3 tiktok.py
