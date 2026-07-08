@@ -24,22 +24,25 @@ def clean_cover_url(cover):
     # "https://www.tikwm.comhttps://p16-common-sign.tiktokcdn-eu.com/..."
     if "https://" in cover:
         parts = cover.split("https://")
-        # parts[0] = empty or garbage
-        # parts[1] = first valid URL
-        # parts[2] = second URL (rare)
         if len(parts) >= 2:
-            return "https://" + parts[1]
+            cover = "https://" + parts[1]
 
     # If TikWM returns a path starting with "/"
     if cover.startswith("/"):
-        return "https://www.tikwm.com" + cover
+        cover = "https://www.tikwm.com" + cover
 
     # If TikWM returns a normal full URL
     if cover.startswith("http"):
-        return cover
+        pass
+    else:
+        cover = "https://www.tikwm.com" + cover
 
-    # Fallback
-    return "https://www.tikwm.com" + cover
+    # --- NEW: Automatic HEIC → JPG conversion ---
+    if ".heic" in cover:
+        print("HEIC detected, converting to JPG:", cover)
+        cover = cover.replace(".heic", ".jpg")
+
+    return cover
 
 
 # --- Fetch latest TikTok video ---
