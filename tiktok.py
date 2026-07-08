@@ -83,15 +83,15 @@ import json
 # --- TikTok followers ---
 def get_user_stats_rapidapi():
     try:
-        url = "https://tiktok-scraper2.p.rapidapi.com/user/info"
-        query = {"username": TIKTOK_USER}
+        url = "https://tiktok-data-pro.p.rapidapi.com/v1/profile"
+        params = {"username": TIKTOK_USER}
 
         headers = {
             "x-rapidapi-key": os.getenv("RAPIDAPI_KEY"),
-            "x-rapidapi-host": "tiktok-scraper2.p.rapidapi.com"
+            "x-rapidapi-host": "tiktok-data-pro.p.rapidapi.com"
         }
 
-        r = requests.get(url, headers=headers, params=query, timeout=10)
+        r = requests.get(url, headers=headers, params=params, timeout=10)
 
         if r.status_code != 200:
             print("RapidAPI error:", r.status_code, r.text)
@@ -99,12 +99,9 @@ def get_user_stats_rapidapi():
 
         data = r.json()
 
-        user_info = data.get("userInfo", {})
-        stats = user_info.get("stats", {})
-
-        followers = stats.get("followerCount", 0)
-        following = stats.get("followingCount", 0)
-        likes = stats.get("heartCount", 0)
+        followers = data["data"].get("followers", 0)
+        following = data["data"].get("following", 0)
+        likes = data["data"].get("totalLikes", 0)
 
         return {
             "followers": followers,
