@@ -1,8 +1,8 @@
-name: TikTok Checker
+name: TikTok Scraper
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,44 +10,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # ------------------------------------------------------------
-    # Clone repository into ./repo using PAT_TOKEN
-    # This gives full read/write access for commits and pushes.
-    # ------------------------------------------------------------
     - name: Clone repository with PAT
       run: |
         git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git repo
         ls -la repo
 
-    # ------------------------------------------------------------
-    # Install Python 3.11
-    # ------------------------------------------------------------
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    # ------------------------------------------------------------
-    # Install required Python dependencies
-    # ------------------------------------------------------------
-    - name: Install dependencies
+    - name: Ensure memory.txt exists
       run: |
-        pip install requests pillow
+        cd repo
+        if [ ! -f memory.txt ]; then
+          echo "Creating empty memory.txt"
+          touch memory.txt
+        fi
 
-    # ------------------------------------------------------------
-    # Run the TikTok script inside the cloned repo folder
-    # ------------------------------------------------------------
-    - name: Run TikTok script
+    - name: Install Python
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip
+        python3 -m pip install --upgrade pip
+        pip install requests
+
+    - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       run: |
         cd repo
-        python tiktok.py
+        python3 tiktok.py
 
-    # ------------------------------------------------------------
-    # Commit updated memory.txt from inside ./repo
-    # Push using PAT_TOKEN (explicit URL)
-    # ------------------------------------------------------------
     - name: Commit updated memory.txt to repo
       run: |
         cd repo
