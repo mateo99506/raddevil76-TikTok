@@ -1,93 +1,54 @@
 import os
 import requests
+from PIL import Image
+from io import BytesIO
 
-WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
+WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 MEMORY_FILE = "memory.txt"
 
 
-# --- Ensure memory file exists ---
-def ensure_memory_file():
+def load_last_video_id():
     if not os.path.exists(MEMORY_FILE):
-        open(MEMORY_FILE, "w").close()
-        print("Created empty memory.txt")
-    else:
-        print("memory.txt already exists")
-
-
-# --- Clean TikTok cover URL (fixes TikWM double-URL bug) ---
-def clean_cover_url(cover):
-    if not cover:
         return None
-
-    # If TikWM returns a double URL like:
-    # "https://www.tikwm.comhttps://p16-common-sign.tiktokcdn-eu.com/..."
-    if "https://" in cover:
-        parts = cover.split("https://")
-        if len(parts) >= 2:
-            cover = "https://" + parts[1]
-
-    # If TikWM returns a path starting with "/"
-    if cover.startswith("/"):
-        cover = "https://www.tikwm.com" + cover
-
-    # If TikWM returns a normal full URL
-    if cover.startswith("http"):
-        pass
-    else:
-        cover = "https://www.tikwm.com" + cover
-
-    # --- NEW: Automatic HEIC → JPG conversion ---
-    if ".heic" in cover:
-        print("HEIC detected, converting to JPG:", cover)
-        cover = cover.replace(".heic", ".jpg")
-
-    return cover
-
-
-# --- Fetch latest TikTok video ---
-def get_latest_video():
     try:
-        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
-        r = requests.get(api_url, timeout=10)
-
-        if r.status_code != 200:
-            print("API error:", r.status_code)
-            return None
-
-        data = r.json()
-        if data.get("data") is None:
-            print("API returned no data")
-            return None
-
-        videos = data["data"].get("videos")
-        if not videos:
-            print("No videos found")
-            return None
-
-        video = videos[0]
-
-        return {
-            "id": video["video_id"],
-            "title": video.get("title", "No description"),
-            "cover": video.get("cover", ""),
-        }
-
-    except Exception as e:
-        print("API exception:", e)
+        with open(MEMORY_FILE, "r") as f:
+            return f.read().strip()
+    except:
         return None
 
-import re
-import json
 
-
-# --- Save memory ---
-def save_memory(video_id):
+def save_last_video_id(video_id):
     with open(MEMORY_FILE, "w") as f:
         f.write(video_id)
 
 
-# --- Send Discord embed ---
+def clean_cover_url(url):
+    if not url:
+        return ""
+    return url.split("?")[0]
+
+
+def get_latest_video():
+    url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
+    r = requests.get(url, timeout=10)
+    data = r.json()
+
+    if data.get("code") != 0:
+        print("TikWM error:", data)
+        return None
+
+    video = data["data"]["videos"][0]
+
+    return {
+        "id": video["video_id"],
+        "title": video["title"],
+        "cover": "https://www.tikwm.com" + video["cover"],
+        "url": video["play"],
+        "create_time": video["create_time"]
+    }
+
+
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
     final_cover = clean_cover_url(video.get("cover", ""))
@@ -110,23 +71,26 @@ def send_embed(video):
     print("Discord response:", resp.text)
 
 
-# --- Main ---
 def main():
-    ensure_memory_file()
+    print("Checking TikTok…")
 
     video = get_latest_video()
     if not video:
-        print("No video data")
+        print("No video found.")
         return
 
-    last_id = load_memory()
+    last_id = load_last_video_id()
+    print("Last ID:", last_id)
+    print("Current ID:", video["id"])
 
     if last_id == video["id"]:
-        print("Video already sent. Skipping.")
+        print("No new video.")
         return
 
+    print("New video detected!")
     send_embed(video)
-    save_memory(video["id"])
+    save_last_video_id(video["id"])
+    print("Done.")
 
 
 if __name__ == "__main__":
