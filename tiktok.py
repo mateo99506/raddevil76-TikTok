@@ -47,28 +47,60 @@ def clean_cover_url(cover):
 def get_latest_videos():
     try:
         api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=15"
+        print("\n--- DEBUG: Fetching TikTok API ---")
+        print("URL:", api_url)
+
         r = requests.get(api_url, timeout=10)
 
+        print("HTTP status:", r.status_code)
+
+        # Jeśli nie 200 → wypisz całą odpowiedź
         if r.status_code != 200:
             print("API error:", r.status_code)
+            print("Raw response text:\n", r.text[:2000])
             return None
 
-        data = r.json()
+        # Spróbuj sparsować JSON
+        try:
+            data = r.json()
+        except Exception as e:
+            print("JSON parse error:", e)
+            print("Raw response text:\n", r.text[:2000])
+            return None
+
+        print("--- DEBUG: Raw JSON keys ---")
+        print(list(data.keys()))
+
+        # Sprawdź, czy jest sekcja "data"
         if data.get("data") is None:
             print("API returned no data")
+            print("Full JSON:\n", data)
             return None
 
+        # Sprawdź, czy są filmy
         videos = data["data"].get("videos")
         if not videos:
             print("No videos found")
+            print("Full JSON data section:\n", data["data"])
             return None
 
+        print(f"--- DEBUG: Found {len(videos)} videos ---")
+
+        # Wypisz ID pierwszego filmu
+        try:
+            print("First video ID:", videos[0].get("video_id"))
+            print("First video title:", videos[0].get("title"))
+            print("First video cover:", videos[0].get("cover"))
+        except Exception as e:
+            print("DEBUG: Could not inspect first video:", e)
+
+        # Zbuduj wynik
         result = []
         for v in videos:
             result.append({
-                "id": v["video_id"],
+                "id": v.get("video_id"),
                 "title": v.get("title", "No description"),
-                "cover": v.get("cover", ""),
+                "cover": v.get("cover", "")
             })
 
         return result
@@ -76,18 +108,6 @@ def get_latest_videos():
     except Exception as e:
         print("API exception:", e)
         return None
-
-
-# --- Load memory (list of IDs) ---
-def load_memory():
-    try:
-        with open(MEMORY_FILE, "r") as f:
-            content = f.read().strip()
-            if not content:
-                return []
-            return content.split("\n")
-    except:
-        return []
 
 
 # --- Save memory (list of IDs) ---
