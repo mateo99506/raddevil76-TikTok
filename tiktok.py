@@ -77,6 +77,32 @@ def get_latest_video():
         print("API exception:", e)
         return None
 
+# --- Fetch TikTok user stats (followers count) ---
+def get_user_stats():
+    try:
+        api_url = f"https://www.tikwm.com/api/user/info?unique_id={TIKTOK_USER}"
+        r = requests.get(api_url, timeout=10)
+
+        if r.status_code != 200:
+            print("User stats API error:", r.status_code)
+            return None
+
+        data = r.json()
+        if data.get("data") is None:
+            print("User stats returned no data")
+            return None
+
+        stats = data["data"]
+
+        return {
+            "followers": stats.get("follower_count", 0),
+            "following": stats.get("following_count", 0),
+            "likes": stats.get("total_favorited", 0)
+        }
+
+    except Exception as e:
+        print("User stats exception:", e)
+        return None
 
 # --- Load memory ---
 def load_memory():
@@ -99,6 +125,10 @@ def send_embed(video):
 
     final_cover = clean_cover_url(video.get("cover", ""))
 
+    # Fetch TikTok user stats
+    stats = get_user_stats()
+    followers = stats["followers"] if stats else 0
+
     embed = {
         "embeds": [
             {
@@ -107,6 +137,13 @@ def send_embed(video):
                 "url": video_url,
                 "color": 0x00FFFF,
                 "image": {"url": final_cover} if final_cover else {},
+                "fields": [
+                    {
+                        "name": "Followers",
+                        "value": f"{followers:,}",
+                        "inline": True
+                    }
+                ]
             }
         ]
     }
