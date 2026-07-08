@@ -8,6 +8,10 @@ WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 MEMORY_FILE = "memory.txt"
 
 
+# ------------------------------------------------------------
+# Load last saved TikTok video ID from memory.txt
+# Used to detect whether a new video has appeared.
+# ------------------------------------------------------------
 def load_last_video_id():
     if not os.path.exists(MEMORY_FILE):
         return None
@@ -18,17 +22,29 @@ def load_last_video_id():
         return None
 
 
+# ------------------------------------------------------------
+# Save the latest TikTok video ID to memory.txt
+# Ensures the bot does not repost the same video twice.
+# ------------------------------------------------------------
 def save_last_video_id(video_id):
     with open(MEMORY_FILE, "w") as f:
         f.write(video_id)
 
 
+# ------------------------------------------------------------
+# Remove query parameters from the cover URL
+# TikWM sometimes adds ?x-expires=..., this cleans it.
+# ------------------------------------------------------------
 def clean_cover_url(url):
     if not url:
         return ""
     return url.split("?")[0]
 
 
+# ------------------------------------------------------------
+# Fetch the latest TikTok video using TikWM API
+# Returns a dictionary with video metadata.
+# ------------------------------------------------------------
 def get_latest_video():
     url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=1"
     r = requests.get(url, timeout=10)
@@ -49,6 +65,10 @@ def get_latest_video():
     }
 
 
+# ------------------------------------------------------------
+# Send a Discord embed with information about the new TikTok video
+# Uses only the webhook URL stored in GitHub Secrets.
+# ------------------------------------------------------------
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
     final_cover = clean_cover_url(video.get("cover", ""))
@@ -71,6 +91,12 @@ def send_embed(video):
     print("Discord response:", resp.text)
 
 
+# ------------------------------------------------------------
+# Main logic:
+# - Fetch latest video
+# - Compare with memory.txt
+# - If new → send embed + update memory
+# ------------------------------------------------------------
 def main():
     print("Checking TikTok…")
 
