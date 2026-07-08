@@ -77,31 +77,55 @@ def get_latest_video():
         print("API exception:", e)
         return None
 
-# --- Fetch TikTok user stats (followers count) ---
-def get_user_stats():
+import re
+import json
+
+# --- Fetch TikTok followers from HTML ---
+def get_user_stats_html():
     try:
-        api_url = f"https://www.tikwm.com/api/user/info?unique_id={TIKTOK_USER}&web=1"
-        r = requests.get(api_url, timeout=10)
-
-        if r.status_code != 200:
-            print("User stats API error:", r.status_code)
-            return None
-
-        data = r.json()
-        if data.get("data") is None:
-            print("User stats returned no data")
-            return None
-
-        stats = data["data"]
-
-        return {
-            "followers": stats.get("follower_count", 0),
-            "following": stats.get("following_count", 0),
-            "likes": stats.get("total_favorited", 0)
+        url = f"https://www.tiktok.com/@{TIKTOK_USER}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
 
+        r = requests.get(url, headers=headers, timeout=10)
+
+        if r.status_code != 200:
+            print("HTML stats error:", r.status_code)
+            return None
+
+        html = r.text
+
+        # Extract JSON inside <script id="SIGI_STATE"> ... </script>
+        match = re.search(r'<script id="SIGI_STATE"[^>]*>(.*?)</script>', html)
+        if not match:
+            print("SIGI_STATE not found")
+            return None
+
+        json_text = match.group(1)
+
+        data = json.loads(json_text)
+
+        # Navigate TikTok's HTML JSON structure
+        user_module = data.get("UserModule", {})
+        users = user_module.get("users", {})
+        stats = user_module.get("stats", {})
+
+        # Find the correct user entry
+        if TIKTOK_USER in stats:
+            followers = stats[TIKTOK_USER].get("followerCount", 0)
+            return {"followers": followers}
+
+        # Fallback: try any user entry
+        for key in stats:
+            if "followerCount" in stats[key]:
+                return {"followers": stats[key]["followerCount"]}
+
+        print("Followers not found in HTML JSON")
+        return None
+
     except Exception as e:
-        print("User stats exception:", e)
+        print("HTML stats exception:", e)
         return None
 
 # --- Load memory ---
@@ -125,8 +149,8 @@ def send_embed(video):
 
     final_cover = clean_cover_url(video.get("cover", ""))
 
-    # Fetch TikTok user stats
-    stats = get_user_stats()
+    # Fetch followers from HTML (reliable)
+    stats = get_user_stats_html()
     followers = stats["followers"] if stats else 0
 
     embed = {
