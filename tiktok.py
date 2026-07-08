@@ -80,47 +80,6 @@ def get_latest_video():
 import re
 import json
 
-# --- TikTok followers ---
-def get_user_stats_rapidapi():
-    try:
-        url = "https://tiktok-data-pro.p.rapidapi.com/v1/profile"
-        params = {"username": TIKTOK_USER}
-
-        headers = {
-            "x-rapidapi-key": os.getenv("RAPIDAPI_KEY"),
-            "x-rapidapi-host": "tiktok-data-pro.p.rapidapi.com"
-        }
-
-        r = requests.get(url, headers=headers, params=params, timeout=10)
-
-        if r.status_code != 200:
-            print("RapidAPI error:", r.status_code, r.text)
-            return None
-
-        data = r.json()
-
-        followers = data["data"].get("followers", 0)
-        following = data["data"].get("following", 0)
-        likes = data["data"].get("totalLikes", 0)
-
-        return {
-            "followers": followers,
-            "following": following,
-            "likes": likes
-        }
-
-    except Exception as e:
-        print("RapidAPI exception:", e)
-        return None
-
-# --- Load memory ---
-def load_memory():
-    try:
-        with open(MEMORY_FILE, "r") as f:
-            return f.read().strip()
-    except:
-        return None
-
 
 # --- Save memory ---
 def save_memory(video_id):
@@ -131,12 +90,7 @@ def save_memory(video_id):
 # --- Send Discord embed ---
 def send_embed(video):
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video['id']}"
-
     final_cover = clean_cover_url(video.get("cover", ""))
-
-    # Followers
-    stats = get_user_stats_rapidapi()
-    followers = stats["followers"] if stats else 0
 
     embed = {
         "embeds": [
@@ -145,20 +99,12 @@ def send_embed(video):
                 "description": video["title"],
                 "url": video_url,
                 "color": 0x00FFFF,
-                "image": {"url": final_cover} if final_cover else {},
-                "fields": [
-                    {
-                        "name": "Followers",
-                        "value": f"{followers:,}",
-                        "inline": True
-                    }
-                ]
+                "image": {"url": final_cover} if final_cover else {}
             }
         ]
     }
 
     print("Sending embed:", embed)
-
     resp = requests.post(WEBHOOK_URL, json=embed)
     print("Discord status:", resp.status_code)
     print("Discord response:", resp.text)
