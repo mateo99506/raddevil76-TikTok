@@ -46,7 +46,7 @@ def clean_cover_url(cover):
 # --- Fetch last TikTok videos ---
 def get_latest_videos():
     try:
-        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=24"
+        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=15"
         r = requests.get(api_url, timeout=10)
 
         if r.status_code != 200:
