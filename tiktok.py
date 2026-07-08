@@ -80,7 +80,7 @@ def get_latest_video():
 # --- Fetch TikTok user stats (followers count) ---
 def get_user_stats():
     try:
-        api_url = f"https://www.tikwm.com/api/user/info?unique_id={TIKTOK_USER}"
+        api_url = f"https://www.tikwm.com/api/user/info?unique_id={TIKTOK_USER}&web=1"
         r = requests.get(api_url, timeout=10)
 
         if r.status_code != 200:
