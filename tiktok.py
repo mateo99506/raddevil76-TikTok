@@ -41,12 +41,24 @@ def clean_cover_url(cover):
     return cover
 
 
-# --- Save log (append-only) ---
-def append_log(status, raw_text):   
+# --- Save log (append-only) ---  
+def append_log(status, raw_text):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text}\n"
-    with open(LOG_FILE, "a") as f:
-        f.write(entry)
+
+    try:
+        with open(LOG_FILE, "r") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        lines = []
+
+    lines.append(entry)
+
+    if len(lines) > 1000:
+        lines = lines[-1000:]
+
+    with open(LOG_FILE, "w") as f:
+        f.writelines(lines)
 
 
 # --- Fetch last TikTok videos ---
