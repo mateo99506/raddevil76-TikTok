@@ -142,6 +142,25 @@ def get_latest_videos():
 
     return videos
 
+# --- Search JPG file ---
+def pick_best_cover(video):
+    candidates = [
+        video.get("cover"),
+        video.get("origin_cover"),
+        video.get("dynamic_cover"),
+        video.get("share_cover")
+    ]
+
+    # images (PhotoMode)
+    if "images" in video and isinstance(video["images"], list):
+        candidates.extend(video["images"])
+
+    # first no-HEIC
+    for url in candidates:
+        if url and not url.endswith(".heic"):
+            return url
+
+    return None
 
 # --- Send Discord embed with local JPG file ---
 def send_embed(video):
@@ -149,13 +168,18 @@ def send_embed(video):
     title = video["title"]
 
     # FIX: cover URL is already absolute
-    cover_url = video["cover"]
+    cover_url = pick_best_cover(video)
+
+    if cover_url is None:
+        print("All cover formats are HEIC — skipping video")
+        return False
+
     cover_file = download_and_convert_cover(cover_url)
 
     if cover_file is None:
-        print("Cover conversion failed — skipping this video entirely")
+        print("Cover invalid — skipping this video and NOT saving ID")
         return False
-   
+
     files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
     image_block = {"url": "attachment://cover.jpg"}
     
