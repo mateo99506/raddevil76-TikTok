@@ -1,4 +1,4 @@
-name: TikTok Scraper
+name: TikTok Scrape
 
 on:
   repository_dispatch:
