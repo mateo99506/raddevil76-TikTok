@@ -50,6 +50,7 @@ jobs:
         git config --global user.email "github-actions@github.com"
         git add memory.txt
         git commit -m "Update memory" || echo "No changes to commit"
+        git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
 
     - name: Commit updated log.txt to repo
@@ -59,4 +60,5 @@ jobs:
         git config --global user.email "github-actions@github.com"
         git add log.txt
         git commit -m "Update log" || echo "No log changes to commit"
+        git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
