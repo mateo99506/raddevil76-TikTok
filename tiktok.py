@@ -109,6 +109,13 @@ def get_latest_videos():
         print("API exception:", e)
         return None
 
+# --- Load memory ---
+def load_memory():
+    try:
+        with open(MEMORY_FILE, "r") as f:
+            return f.read().strip()
+    except:
+        return None
 
 # --- Save memory (list of IDs) ---
 def save_memory(id_list):
