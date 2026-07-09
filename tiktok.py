@@ -1,10 +1,12 @@
 import os
 import requests
 import time
+from datetime import datetime
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
 MEMORY_FILE = "memory.txt"
+LOG_FILE = "log.txt"
 
 
 # --- Ensure memory file exists ---
@@ -21,26 +23,30 @@ def clean_cover_url(cover):
     if not cover:
         return None
 
-    # Fix double URL
     if "https://" in cover:
         parts = cover.split("https://")
         if len(parts) >= 2:
             cover = "https://" + parts[1]
 
-    # If path starts with "/"
     if cover.startswith("/"):
         cover = "https://www.tikwm.com" + cover
 
-    # If not a full URL
     if not cover.startswith("http"):
         cover = "https://www.tikwm.com" + cover
 
-    # HEIC → JPG
     if ".heic" in cover:
         print("HEIC detected, converting to JPG:", cover)
         cover = cover.replace(".heic", ".jpg")
 
     return cover
+
+
+# --- Save log (append-only) ---
+def append_log(status, raw_text):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text}\n"
+    with open(LOG_FILE, "a") as f:
+        f.write(entry)
 
 
 # --- Fetch last TikTok videos ---
@@ -54,39 +60,39 @@ def get_latest_videos():
 
         print("HTTP status:", r.status_code)
 
-        # Jeśli nie 200 → wypisz całą odpowiedź
+        # Log errors
         if r.status_code != 200:
             print("API error:", r.status_code)
             print("Raw response text:\n", r.text[:2000])
+            append_log(r.status_code, r.text)
             return None
 
-        # Spróbuj sparsować JSON
         try:
             data = r.json()
         except Exception as e:
             print("JSON parse error:", e)
             print("Raw response text:\n", r.text[:2000])
+            append_log("JSONDecodeError", r.text)
             return None
 
         print("--- DEBUG: Raw JSON keys ---")
         print(list(data.keys()))
 
-        # Sprawdź, czy jest sekcja "data"
         if data.get("data") is None:
             print("API returned no data")
             print("Full JSON:\n", data)
+            append_log("NoData", str(data))
             return None
 
-        # Sprawdź, czy są filmy
         videos = data["data"].get("videos")
         if not videos:
             print("No videos found")
             print("Full JSON data section:\n", data["data"])
+            append_log("NoVideos", str(data["data"]))
             return None
 
         print(f"--- DEBUG: Found {len(videos)} videos ---")
 
-        # Wypisz ID pierwszego filmu
         try:
             print("First video ID:", videos[0].get("video_id"))
             print("First video title:", videos[0].get("title"))
@@ -94,7 +100,6 @@ def get_latest_videos():
         except Exception as e:
             print("DEBUG: Could not inspect first video:", e)
 
-        # Zbuduj wynik
         result = []
         for v in videos:
             result.append({
@@ -107,15 +112,21 @@ def get_latest_videos():
 
     except Exception as e:
         print("API exception:", e)
+        append_log("Exception", str(e))
         return None
 
-# --- Load memory ---
+
+# --- Load memory (returns list of IDs) ---
 def load_memory():
     try:
         with open(MEMORY_FILE, "r") as f:
-            return f.read().strip()
+            content = f.read().strip()
+            if not content:
+                return []
+            return content.split("\n")
     except:
-        return None
+        return []
+
 
 # --- Save memory (list of IDs) ---
 def save_memory(id_list):
@@ -174,12 +185,10 @@ def main():
         for index, v in enumerate(reversed(new_videos)):
             send_embed(v)
 
-            # --- NEW: 2-second delay between messages ---
             if index < len(new_videos) - 1:
                 print("Waiting 2 seconds before next send...")
                 time.sleep(2)
 
-    # Overwrite memory with the latest 9 IDs
     save_memory(latest_ids)
     print("Memory updated.")
 
