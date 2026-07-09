@@ -175,7 +175,7 @@ def main():
     print("Latest IDs:", latest_ids)
 
     # Find new videos
-    new_videos = [v for v in videos if v["id"] not in memory_ids]   # >>> CHANGED
+    new_videos = [v for v in videos if v["id"] not in memory_ids]   
 
     if not new_videos:
         print("No new videos found. Skipping.")
