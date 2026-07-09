@@ -24,6 +24,14 @@ jobs:
           touch memory.txt
         fi
 
+    - name: Ensure log.txt exists  
+      run: |                        
+        cd repo                    
+        if [ ! -f log.txt ]; then   
+          echo "Creating empty log.txt"   
+          touch log.txt             
+        fi                          
+
     - name: Install Python
       run: |
         sudo apt-get update
@@ -46,3 +54,12 @@ jobs:
         git add memory.txt
         git commit -m "Update memory" || echo "No changes to commit"
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
+
+     - name: Commit updated log.txt to repo
+        run: |
+          cd repo
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add log.txt
+          git commit -m "Update log" || echo "No log changes to commit"
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
