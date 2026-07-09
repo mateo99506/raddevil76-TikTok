@@ -3,6 +3,8 @@ import requests
 from datetime import datetime
 import subprocess
 from io import BytesIO
+import json
+import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
@@ -11,6 +13,7 @@ MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
 
 
+# --- Ensure memory file exists ---
 def ensure_memory_file():
     if not os.path.exists(MEMORY_FILE):
         open(MEMORY_FILE, "w").close()
@@ -19,6 +22,7 @@ def ensure_memory_file():
         print("memory.txt already exists")
 
 
+# --- Load memory (list of IDs) ---
 def load_memory():
     try:
         with open(MEMORY_FILE, "r") as f:
@@ -30,11 +34,13 @@ def load_memory():
         return []
 
 
+# --- Save memory (list of IDs) ---
 def save_memory(ids):
     with open(MEMORY_FILE, "w") as f:
         f.write(",".join(ids))
 
 
+# --- Append log (max 1000 lines) ---
 def append_log(status, raw_text):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text[:2000]}\n"
@@ -72,7 +78,7 @@ def download_and_convert_cover(url):
 
     content_type = r.headers.get("Content-Type", "").lower()
 
-    # Save HEIC or JPG temporarily
+    # HEIC → convert via ImageMagick
     if "heic" in content_type or url.endswith(".heic"):
         print("HEIC detected — converting via ImageMagick")
 
@@ -89,11 +95,12 @@ def download_and_convert_cover(url):
         with open("cover.jpg", "rb") as f:
             return BytesIO(f.read())
 
-    else:
-        print("Cover is already JPG/PNG")
-        return BytesIO(r.content)
+    # JPG/PNG → return raw bytes
+    print("Cover is already JPG/PNG")
+    return BytesIO(r.content)
 
 
+# --- Fetch TikTok videos ---
 def get_latest_videos():
     api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
 
@@ -111,7 +118,6 @@ def get_latest_videos():
 
     if r.status_code != 200:
         print("API error:", r.status_code)
-        print("Raw response text:\n", r.text[:2000])
         append_log(r.status_code, r.text)
         return None
 
@@ -119,7 +125,6 @@ def get_latest_videos():
         data = r.json()
     except Exception as e:
         print("JSON parse error:", e)
-        print("Raw response text:\n", r.text[:2000])
         append_log("JSONDecodeError", r.text)
         return None
 
@@ -134,9 +139,8 @@ def get_latest_videos():
     return videos
 
 
+# --- Send Discord embed with local JPG file ---
 def send_embed(video):
-    import json
-
     video_id = video["video_id"]
     title = video["title"]
 
@@ -169,7 +173,6 @@ def send_embed(video):
 
     print("Sending embed:", embed)
 
-    # FIX: payload_json must be valid JSON
     resp = requests.post(
         WEBHOOK_URL,
         data={"payload_json": json.dumps(embed)},
@@ -180,6 +183,7 @@ def send_embed(video):
     print("Discord response:", resp.text)
 
 
+# --- Main ---
 def main():
     ensure_memory_file()
 
@@ -201,10 +205,14 @@ def main():
         print("No new videos.")
         return
 
-    new_video = next(v for v in videos if v["video_id"] == new_ids[0])
+    # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
+    for vid in videos:
+        if vid["video_id"] in new_ids:
+            send_embed(vid)
+            print("Waiting 2 seconds before next message...")
+            time.sleep(2)
 
-    send_embed(new_video)
-
+    # Update memory
     updated_memory = latest_ids[:12]
     save_memory(updated_memory)
     print("Memory updated.")
