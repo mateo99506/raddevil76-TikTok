@@ -32,9 +32,9 @@ jobs:
     - name: Install Python
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 python3-pip
+        sudo apt-get install -y python3 python3-pip imagemagick
         python3 -m pip install --upgrade pip
-        pip install requests pillow pyheif
+        pip install requests
 
     - name: Run TikTok scraper
       env:
