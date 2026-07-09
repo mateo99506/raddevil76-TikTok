@@ -64,7 +64,7 @@ def append_log(status, raw_text):
 # --- Fetch last TikTok videos ---
 def get_latest_videos():
     try:
-        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=15"
+        api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
         print("\n--- DEBUG: Fetching TikTok API ---")
         print("URL:", api_url)
 
