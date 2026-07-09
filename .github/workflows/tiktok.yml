@@ -37,6 +37,11 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install requests
 
+    - name: Install HEIF support
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libheif1 libheif-dev libheif-examples
+    
     - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
