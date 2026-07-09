@@ -1,8 +1,7 @@
 import os
 import requests
 from datetime import datetime
-import pyheif
-from PIL import Image
+import subprocess
 from io import BytesIO
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
@@ -12,7 +11,6 @@ MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
 
 
-# --- Ensure memory file exists ---
 def ensure_memory_file():
     if not os.path.exists(MEMORY_FILE):
         open(MEMORY_FILE, "w").close()
@@ -21,7 +19,6 @@ def ensure_memory_file():
         print("memory.txt already exists")
 
 
-# --- Load memory (list of IDs) ---
 def load_memory():
     try:
         with open(MEMORY_FILE, "r") as f:
@@ -33,13 +30,11 @@ def load_memory():
         return []
 
 
-# --- Save memory (list of IDs) ---
 def save_memory(ids):
     with open(MEMORY_FILE, "w") as f:
         f.write(",".join(ids))
 
 
-# --- Append log (max 1000 lines) ---
 def append_log(status, raw_text):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text[:2000]}\n"
@@ -59,7 +54,7 @@ def append_log(status, raw_text):
         f.writelines(lines)
 
 
-# --- Download cover and convert HEIC → JPG ---
+# --- Download cover and convert HEIC → JPG using ImageMagick ---
 def download_and_convert_cover(url):
     print("Downloading cover:", url)
 
@@ -75,39 +70,30 @@ def download_and_convert_cover(url):
         append_log(r.status_code, r.text)
         return None
 
-    content_type = r.headers.get("Content-Type", "")
+    content_type = r.headers.get("Content-Type", "").lower()
 
-    # HEIC → convert
-    if "heic" in content_type.lower() or url.endswith(".heic"):
-        print("HEIC detected — converting locally to JPG")
+    # Save HEIC or JPG temporarily
+    if "heic" in content_type or url.endswith(".heic"):
+        print("HEIC detected — converting via ImageMagick")
+
+        with open("cover.heic", "wb") as f:
+            f.write(r.content)
 
         try:
-            heif_file = pyheif.read_heif(r.content)
-            image = Image.frombytes(
-                heif_file.mode,
-                heif_file.size,
-                heif_file.data,
-                "raw",
-                heif_file.mode,
-                heif_file.stride,
-            )
-
-            output = BytesIO()
-            image.save(output, format="JPEG", quality=90)
-            output.seek(0)
-            return output
-
+            subprocess.run(["convert", "cover.heic", "cover.jpg"], check=True)
         except Exception as e:
-            print("HEIC conversion error:", e)
-            append_log("HEICConversionError", str(e))
+            print("ImageMagick conversion error:", e)
+            append_log("ImageMagickError", str(e))
             return None
 
-    # JPG/PNG → return raw bytes
-    print("Cover is already JPG/PNG")
-    return BytesIO(r.content)
+        with open("cover.jpg", "rb") as f:
+            return BytesIO(f.read())
+
+    else:
+        print("Cover is already JPG/PNG")
+        return BytesIO(r.content)
 
 
-# --- Fetch TikTok videos ---
 def get_latest_videos():
     api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
 
@@ -148,7 +134,6 @@ def get_latest_videos():
     return videos
 
 
-# --- Send Discord embed with local JPG file ---
 def send_embed(video):
     video_id = video["video_id"]
     title = video["title"]
@@ -184,7 +169,6 @@ def send_embed(video):
     print("Discord response:", resp.text)
 
 
-# --- Main ---
 def main():
     ensure_memory_file()
 
