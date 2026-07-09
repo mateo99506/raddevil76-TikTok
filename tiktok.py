@@ -150,17 +150,15 @@ def send_embed(video):
 
     # FIX: cover URL is already absolute
     cover_url = video["cover"]
-
     cover_file = download_and_convert_cover(cover_url)
 
     if cover_file is None:
-        print("Cover conversion failed — sending embed without image")
-        files = None
-        image_block = {}
-    else:
-        files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
-        image_block = {"url": "attachment://cover.jpg"}
-
+        print("Cover conversion failed — skipping this video entirely")
+        return False
+   
+    files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
+    image_block = {"url": "attachment://cover.jpg"}
+    
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
 
     embed = {
@@ -186,6 +184,11 @@ def send_embed(video):
     print("Discord status:", resp.status_code)
     print("Discord response:", resp.text)
 
+    if resp.status_code not in (200, 204):
+        print("Discord rejected message — NOT saving ID")
+        return False
+
+    return True
 
 # --- Main ---
 def main():
@@ -212,9 +215,12 @@ def main():
     # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
     for vid in reversed(videos):
         if vid["video_id"] in new_ids:
-            send_embed(vid)
-            print("Waiting 2 seconds before next message...")
-            time.sleep(2)
+            if send_embed(vid):
+                print("Waiting 2 seconds before next message...")
+                time.sleep(2)
+            else:
+                print("Skipping video — cover invalid, not saving ID")
+                continue
 
     # Update memory
     memory_ids.extend(new_ids)
