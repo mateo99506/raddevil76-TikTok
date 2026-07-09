@@ -1,7 +1,7 @@
 import os
 import requests
 import time
-from datetime import datetime
+from datetime import datetime   
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 TIKTOK_USER = "raddevil76"
@@ -42,7 +42,7 @@ def clean_cover_url(cover):
 
 
 # --- Save log (append-only) ---
-def append_log(status, raw_text):
+def append_log(status, raw_text):   
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text}\n"
     with open(LOG_FILE, "a") as f:
@@ -60,11 +60,11 @@ def get_latest_videos():
 
         print("HTTP status:", r.status_code)
 
-        # Log errors
-        if r.status_code != 200:
+        # Log ONLY when status != 200
+        if r.status_code != 200:   
             print("API error:", r.status_code)
             print("Raw response text:\n", r.text[:2000])
-            append_log(r.status_code, r.text)
+            append_log(r.status_code, r.text)   
             return None
 
         try:
@@ -72,7 +72,7 @@ def get_latest_videos():
         except Exception as e:
             print("JSON parse error:", e)
             print("Raw response text:\n", r.text[:2000])
-            append_log("JSONDecodeError", r.text)
+            append_log("JSONDecodeError", r.text)   
             return None
 
         print("--- DEBUG: Raw JSON keys ---")
@@ -81,14 +81,14 @@ def get_latest_videos():
         if data.get("data") is None:
             print("API returned no data")
             print("Full JSON:\n", data)
-            append_log("NoData", str(data))
+            append_log("NoData", str(data))   
             return None
 
         videos = data["data"].get("videos")
         if not videos:
             print("No videos found")
             print("Full JSON data section:\n", data["data"])
-            append_log("NoVideos", str(data["data"]))
+            append_log("NoVideos", str(data["data"]))   
             return None
 
         print(f"--- DEBUG: Found {len(videos)} videos ---")
@@ -112,18 +112,18 @@ def get_latest_videos():
 
     except Exception as e:
         print("API exception:", e)
-        append_log("Exception", str(e))
+        append_log("Exception", str(e))   
         return None
 
 
 # --- Load memory (returns list of IDs) ---
-def load_memory():
+def load_memory():   
     try:
         with open(MEMORY_FILE, "r") as f:
             content = f.read().strip()
             if not content:
                 return []
-            return content.split("\n")
+            return content.split("\n")   
     except:
         return []
 
@@ -175,7 +175,7 @@ def main():
     print("Latest IDs:", latest_ids)
 
     # Find new videos
-    new_videos = [v for v in videos if v["id"] not in memory_ids]
+    new_videos = [v for v in videos if v["id"] not in memory_ids]   # >>> CHANGED
 
     if not new_videos:
         print("No new videos found. Skipping.")
