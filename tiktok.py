@@ -86,10 +86,14 @@ def download_and_convert_cover(url):
             f.write(r.content)
 
         try:
-            subprocess.run(["convert", "cover.heic", "cover.jpg"], check=True)
+            subprocess.run(
+                ["heif-convert", "cover.heic", "cover.jpg"],
+                check=True
+            )
+            print("HEIC converted using heif-convert")
         except Exception as e:
-            print("ImageMagick conversion error:", e)
-            append_log("ImageMagickError", str(e))
+            print("heif-convert failed:", e)
+            append_log("HEIFConvertError", str(e))
             return None
 
         with open("cover.jpg", "rb") as f:
