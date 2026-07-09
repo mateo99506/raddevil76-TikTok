@@ -144,23 +144,35 @@ def get_latest_videos():
 
 # --- Search JPG file ---
 def pick_best_cover(video):
-    candidates = [
-        video.get("cover"),
-        video.get("origin_cover"),
-        video.get("dynamic_cover"),
-        video.get("share_cover")
+    candidates = []
+    
+    fields = [
+        "cover",
+        "origin_cover",
+        "dynamic_cover",
+        "share_cover"
     ]
 
-    # images (PhotoMode)
-    if "images" in video and isinstance(video["images"], list):
-        candidates.extend(video["images"])
+    for field in fields:
+        url = video.get(field)
+        if url:
+            candidates.append(url)
 
-    # first no-HEIC
+            if url.endswith(".heic"):
+                jpeg_url = url.replace(".heic", ".jpeg")
+                jpg_url = url.replace(".heic", ".jpg")
+                candidates.append(jpeg_url)
+                candidates.append(jpg_url)
+
+    if "images" in video and isinstance(video["images"], list):
+        for img in video["images"]:
+            candidates.append(img)
+
     for url in candidates:
         if url and not url.endswith(".heic"):
             return url
 
-    return None
+    return video.get("cover")
 
 # --- Send Discord embed with local JPG file ---
 def send_embed(video):
