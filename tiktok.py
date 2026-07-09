@@ -206,7 +206,7 @@ def main():
         return
 
     # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
-    for vid in videos:
+    for vid in reversed(videos):
         if vid["video_id"] in new_ids:
             send_embed(vid)
             print("Waiting 2 seconds before next message...")
