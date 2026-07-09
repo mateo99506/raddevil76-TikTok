@@ -213,9 +213,13 @@ def main():
             time.sleep(2)
 
     # Update memory
-    updated_memory = latest_ids[:12]
-    save_memory(updated_memory)
-    print("Memory updated.")
+    memory_ids.extend(new_ids)
+    
+    if len(memory_ids) > 100:
+        memory_ids = memory_ids[-100:]
+    
+    save_memory(memory_ids)
+    print("Memory updated (max 100 entries).")
 
 
 if __name__ == "__main__":
