@@ -135,10 +135,14 @@ def get_latest_videos():
 
 
 def send_embed(video):
+    import json
+
     video_id = video["video_id"]
     title = video["title"]
 
-    cover_url = "https://www.tikwm.com" + video["cover"]
+    # FIX: cover URL is already absolute
+    cover_url = video["cover"]
+
     cover_file = download_and_convert_cover(cover_url)
 
     if cover_file is None:
@@ -164,7 +168,14 @@ def send_embed(video):
     }
 
     print("Sending embed:", embed)
-    resp = requests.post(WEBHOOK_URL, data={"payload_json": str(embed)}, files=files)
+
+    # FIX: payload_json must be valid JSON
+    resp = requests.post(
+        WEBHOOK_URL,
+        data={"payload_json": json.dumps(embed)},
+        files=files
+    )
+
     print("Discord status:", resp.status_code)
     print("Discord response:", resp.text)
 
