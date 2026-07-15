@@ -7,7 +7,10 @@ import json
 import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-TIKTOK_USER = "raddevil76"
+
+# TikTok Mobile API – wewnętrzne ID użytkownika (nie @nazwa)
+TIKTOK_USER_ID = "7503894081589707798"
+TIKTOK_USERNAME = "raddevil76"
 
 MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
@@ -17,9 +20,6 @@ LOG_FILE = "log.txt"
 def ensure_memory_file():
     if not os.path.exists(MEMORY_FILE):
         open(MEMORY_FILE, "w").close()
-        print("Created empty memory.txt")
-    else:
-        print("memory.txt already exists")
 
 
 # --- Load memory (list of IDs) ---
@@ -78,9 +78,9 @@ def download_and_convert_cover(url):
 
     content_type = r.headers.get("Content-Type", "").lower()
 
-    # HEIC → convert via ImageMagick
+    # HEIC → convert via heif-convert
     if "heic" in content_type or url.endswith(".heic"):
-        print("HEIC detected — converting via ImageMagick")
+        print("HEIC detected — converting via heif-convert")
 
         with open("cover.heic", "wb") as f:
             f.write(r.content)
@@ -104,17 +104,58 @@ def download_and_convert_cover(url):
     return BytesIO(r.content)
 
 
-# --- Fetch TikTok videos ---
+# --- Pick best cover from Mobile API video object ---
+def pick_best_cover(video):
+    # TikTok Mobile API: video["video"]["cover"]["url_list"] / origin_cover / dynamic_cover
+    candidates = []
+
+    v = video.get("video", {})
+
+    for field in ["cover", "origin_cover", "dynamic_cover"]:
+        obj = v.get(field)
+        if obj and isinstance(obj, dict):
+            urls = obj.get("url_list", [])
+            for u in urls:
+                candidates.append(u)
+
+    # fallback: share_info / misc
+    share_info = video.get("share_info", {})
+    if isinstance(share_info, dict):
+        cover_url = share_info.get("share_cover")
+        if cover_url:
+            candidates.append(cover_url)
+
+    # wybierz pierwsze nie-HEIC
+    for url in candidates:
+        if url and not url.endswith(".heic"):
+            return url
+
+    # jeśli wszystko HEIC – zwróć pierwsze
+    return candidates[0] if candidates else None
+
+
+# --- Fetch TikTok videos via Mobile API ---
 def get_latest_videos():
-    api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
-    
-    print("\n--- DEBUG: Fetching TikTok API ---")
+    api_url = "https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/aweme/post/"
+
+    params = {
+        "user_id": TIKTOK_USER_ID,
+        "count": 12,
+        "max_cursor": 0,
+        "aid": 1988,
+    }
+
+    headers = {
+        "User-Agent": "com.ss.android.ugc.aweme/700 (Linux; Android 12)",
+        "Accept": "application/json",
+    }
+
+    print("\n--- DEBUG: Fetching TikTok Mobile API ---")
     print("URL:", api_url)
+    print("Params:", params)
 
     try:
-        import cloudscraper
-        scraper = cloudscraper.create_scraper()
-        r = scraper.get(api_url, timeout=10)
+        r = requests.get(api_url, params=params, headers=headers, timeout=10)
     except Exception as e:
         print("Request exception:", e)
         append_log("RequestException", str(e))
@@ -134,58 +175,31 @@ def get_latest_videos():
         append_log("JSONDecodeError", r.text)
         return None
 
-    if data.get("code") != 0:
-        print("TikWM returned error:", data)
-        append_log("TikWMError", str(data))
+    if "aweme_list" not in data:
+        print("No aweme_list in response")
+        append_log("NoAwemeList", json.dumps(data)[:2000])
         return None
 
-    videos = data["data"]["videos"]
+    videos = data["aweme_list"]
     print("--- DEBUG: Found", len(videos), "videos ---")
 
     return videos
 
-# --- Search JPG file ---
-def pick_best_cover(video):
-    candidates = []
-    
-    fields = [
-        "cover",
-        "origin_cover",
-        "dynamic_cover",
-        "share_cover"
-    ]
-
-    for field in fields:
-        url = video.get(field)
-        if url:
-            candidates.append(url)
-
-            if url.endswith(".heic"):
-                jpeg_url = url.replace(".heic", ".jpeg")
-                jpg_url = url.replace(".heic", ".jpg")
-                candidates.append(jpeg_url)
-                candidates.append(jpg_url)
-
-    if "images" in video and isinstance(video["images"], list):
-        for img in video["images"]:
-            candidates.append(img)
-
-    for url in candidates:
-        if url and not url.endswith(".heic"):
-            return url
-
-    return video.get("cover")
 
 # --- Send Discord embed with local JPG file ---
 def send_embed(video):
-    video_id = video["video_id"]
-    title = video["title"]
+    video_id = video.get("aweme_id")
+    if not video_id:
+        print("No aweme_id — skipping")
+        return False
 
-    # FIX: cover URL is already absolute
+    # tytuł – z desc lub share_info
+    title = video.get("desc") or video.get("share_info", {}).get("share_title") or "New TikTok video"
+
     cover_url = pick_best_cover(video)
 
     if cover_url is None:
-        print("All cover formats are HEIC — skipping video")
+        print("No valid cover URL — skipping video")
         return False
 
     cover_file = download_and_convert_cover(cover_url)
@@ -196,13 +210,13 @@ def send_embed(video):
 
     files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
     image_block = {"url": "attachment://cover.jpg"}
-    
-    video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
+
+    video_url = f"https://www.tiktok.com/@{TIKTOK_USERNAME}/video/{video_id}"
 
     embed = {
         "embeds": [
             {
-                "title": f"New TikTok video by @{TIKTOK_USER}",
+                "title": f"New TikTok video by @{TIKTOK_USERNAME}",
                 "description": title,
                 "url": video_url,
                 "color": 0x00FFFF,
@@ -224,9 +238,11 @@ def send_embed(video):
 
     if resp.status_code not in (200, 204):
         print("Discord rejected message — NOT saving ID")
+        append_log(resp.status_code, resp.text)
         return False
 
     return True
+
 
 # --- Main ---
 def main():
@@ -240,7 +256,7 @@ def main():
         print("No videos returned.")
         return
 
-    latest_ids = [v["video_id"] for v in videos]
+    latest_ids = [v.get("aweme_id") for v in videos if v.get("aweme_id")]
     print("Latest IDs:", latest_ids)
 
     new_ids = [vid for vid in latest_ids if vid not in memory_ids]
@@ -252,7 +268,11 @@ def main():
 
     # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
     for vid in reversed(videos):
-        if vid["video_id"] in new_ids:
+        vid_id = vid.get("aweme_id")
+        if not vid_id:
+            continue
+
+        if vid_id in new_ids:
             if send_embed(vid):
                 print("Waiting 2 seconds before next message...")
                 time.sleep(2)
@@ -262,10 +282,10 @@ def main():
 
     # Update memory
     memory_ids.extend(new_ids)
-    
+
     if len(memory_ids) > 100:
         memory_ids = memory_ids[-100:]
-    
+
     save_memory(memory_ids)
     print("Memory updated (max 100 entries).")
 
