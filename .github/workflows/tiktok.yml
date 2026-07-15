@@ -41,10 +41,9 @@ jobs:
       run: |
         python3 -m pip install requests
 
-    - name: Run TikTok scraper (TokAPI)
+    - name: Run TikTok SIGI_STATE scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        TOKAPI_KEY: ${{ secrets.TOKAPI_KEY }}
       run: |
         cd repo
         python3 tiktok.py
