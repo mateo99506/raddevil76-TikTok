@@ -7,11 +7,9 @@ import json
 import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
+TOKAPI_KEY = os.getenv("TOKAPI_KEY")
 
-# TikTok Mobile API – wewnętrzne ID użytkownika (nie @nazwa)
-TIKTOK_USER_ID = "7503894081589707798"
 TIKTOK_USERNAME = "raddevil76"
-
 MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
 
@@ -104,58 +102,20 @@ def download_and_convert_cover(url):
     return BytesIO(r.content)
 
 
-# --- Pick best cover from Mobile API video object ---
-def pick_best_cover(video):
-    # TikTok Mobile API: video["video"]["cover"]["url_list"] / origin_cover / dynamic_cover
-    candidates = []
-
-    v = video.get("video", {})
-
-    for field in ["cover", "origin_cover", "dynamic_cover"]:
-        obj = v.get(field)
-        if obj and isinstance(obj, dict):
-            urls = obj.get("url_list", [])
-            for u in urls:
-                candidates.append(u)
-
-    # fallback: share_info / misc
-    share_info = video.get("share_info", {})
-    if isinstance(share_info, dict):
-        cover_url = share_info.get("share_cover")
-        if cover_url:
-            candidates.append(cover_url)
-
-    # wybierz pierwsze nie-HEIC
-    for url in candidates:
-        if url and not url.endswith(".heic"):
-            return url
-
-    # jeśli wszystko HEIC – zwróć pierwsze
-    return candidates[0] if candidates else None
-
-
-# --- Fetch TikTok videos via Mobile API ---
+# --- Fetch TikTok videos via TokAPI ---
 def get_latest_videos():
-    api_url = "https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/aweme/post/"
-
-    params = {
-        "user_id": TIKTOK_USER_ID,
-        "count": 12,
-        "max_cursor": 0,
-        "aid": 1988,
-    }
+    url = f"https://api.tokapi.dev/v1/user/@{TIKTOK_USERNAME}/videos"
 
     headers = {
-        "User-Agent": "com.ss.android.ugc.aweme/700 (Linux; Android 12)",
-        "Accept": "application/json",
+        "Authorization": f"Bearer {TOKAPI_KEY}",
+        "Accept": "application/json"
     }
 
-    print("\n--- DEBUG: Fetching TikTok Mobile API ---")
-    print("URL:", api_url)
-    print("Params:", params)
+    print("\n--- DEBUG: Fetching TokAPI ---")
+    print("URL:", url)
 
     try:
-        r = requests.get(api_url, params=params, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=10)
     except Exception as e:
         print("Request exception:", e)
         append_log("RequestException", str(e))
@@ -164,7 +124,7 @@ def get_latest_videos():
     print("HTTP status:", r.status_code)
 
     if r.status_code != 200:
-        print("API error:", r.status_code)
+        print("TokAPI error:", r.status_code)
         append_log(r.status_code, r.text)
         return None
 
@@ -175,26 +135,35 @@ def get_latest_videos():
         append_log("JSONDecodeError", r.text)
         return None
 
-    if "aweme_list" not in data:
-        print("No aweme_list in response")
-        append_log("NoAwemeList", json.dumps(data)[:2000])
+    if "videos" not in data:
+        print("No videos in response")
+        append_log("NoVideos", json.dumps(data)[:2000])
         return None
 
-    videos = data["aweme_list"]
+    videos = data["videos"]
     print("--- DEBUG: Found", len(videos), "videos ---")
 
     return videos
 
 
+# --- Pick best cover from TokAPI video object ---
+def pick_best_cover(video):
+    # TokAPI: video["cover"] or video["origin_cover"]
+    for field in ["cover", "origin_cover"]:
+        url = video.get(field)
+        if url:
+            return url
+    return None
+
+
 # --- Send Discord embed with local JPG file ---
 def send_embed(video):
-    video_id = video.get("aweme_id")
+    video_id = video.get("id")
     if not video_id:
-        print("No aweme_id — skipping")
+        print("No video ID — skipping")
         return False
 
-    # tytuł – z desc lub share_info
-    title = video.get("desc") or video.get("share_info", {}).get("share_title") or "New TikTok video"
+    title = video.get("title") or "New TikTok video"
 
     cover_url = pick_best_cover(video)
 
@@ -256,7 +225,7 @@ def main():
         print("No videos returned.")
         return
 
-    latest_ids = [v.get("aweme_id") for v in videos if v.get("aweme_id")]
+    latest_ids = [v.get("id") for v in videos if v.get("id")]
     print("Latest IDs:", latest_ids)
 
     new_ids = [vid for vid in latest_ids if vid not in memory_ids]
@@ -268,7 +237,7 @@ def main():
 
     # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
     for vid in reversed(videos):
-        vid_id = vid.get("aweme_id")
+        vid_id = vid.get("id")
         if not vid_id:
             continue
 
