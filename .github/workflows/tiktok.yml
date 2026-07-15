@@ -30,26 +30,26 @@ jobs:
           touch log.txt
         fi
 
-    - name: Install Python
+    - name: Install Python and system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 python3-pip imagemagick libheif1 libheif-dev libheif-examples
-        python3 -m pip install --upgrade pip
-        python3 -m pip install requests cloudscraper
-
-    - name: Install HEIF support
-      run: |
-        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip imagemagick
         sudo apt-get install -y libheif1 libheif-dev libheif-examples
-    
-    - name: Run TikTok scraper
+        python3 -m pip install --upgrade pip
+
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install requests
+
+    - name: Run TikTok scraper (TokAPI)
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        TOKAPI_KEY: ${{ secrets.TOKAPI_KEY }}
       run: |
         cd repo
         python3 tiktok.py
 
-    - name: Commit updated memory.txt to repo
+    - name: Commit updated memory.txt
       run: |
         cd repo
         git config --global user.name "github-actions"
@@ -59,7 +59,7 @@ jobs:
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
 
-    - name: Commit updated log.txt to repo
+    - name: Commit updated log.txt
       run: |
         cd repo
         git config --global user.name "github-actions"
