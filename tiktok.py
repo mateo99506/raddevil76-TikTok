@@ -136,11 +136,7 @@ def fetch_sigistate():
     html = r.text
 
     # Szukamy window['SIGI_STATE'] = {...};
-    m = re.search(r"window
-
-    \['SIGI_STATE'\]
-    
-    \s*=\s*(\{.*?\});", html, re.DOTALL)
+    m = re.search(r"window\['SIGI_STATE'\]\s*=\s*(\{.*?\});", html, re.DOTALL)
         if not m:
             print("SIGI_STATE not found in HTML")
             append_log("NoSIGI_STATE", html[:2000])
