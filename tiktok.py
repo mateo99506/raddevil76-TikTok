@@ -112,7 +112,9 @@ def get_latest_videos():
     print("URL:", api_url)
 
     try:
-        r = requests.get(api_url, timeout=10)
+        import cloudscraper
+        scraper = cloudscraper.create_scraper()
+        r = scraper.get(api_url, timeout=10)
     except Exception as e:
         print("Request exception:", e)
         append_log("RequestException", str(e))
