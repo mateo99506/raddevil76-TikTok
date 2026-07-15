@@ -33,18 +33,14 @@ jobs:
     - name: Install Python
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 python3-pip imagemagick
+        sudo apt-get install -y python3 python3-pip imagemagick libheif1 libheif-dev libheif-examples
         python3 -m pip install --upgrade pip
-        pip install requests
+        python3 -m pip install requests cloudscraper
 
     - name: Install HEIF support
       run: |
         sudo apt-get update
         sudo apt-get install -y libheif1 libheif-dev libheif-examples
-    
-    - name: Install dependencies
-      run: |
-        pip install requests cloudscraper
     
     - name: Run TikTok scraper
       env:
