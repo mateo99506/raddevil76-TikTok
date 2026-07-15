@@ -106,7 +106,7 @@ def download_and_convert_cover(url):
 
 # --- Fetch TikTok videos ---
 def get_latest_videos():
-    api_url = f"https://www.tikwm.pro/api/user/posts?unique_id={TIKTOK_USER}&count=1"
+    api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
     
     print("\n--- DEBUG: Fetching TikTok API ---")
     print("URL:", api_url)
