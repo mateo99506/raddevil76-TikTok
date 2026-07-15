@@ -1,15 +1,15 @@
 import os
-import requests
-from datetime import datetime
-import subprocess
-from io import BytesIO
+import re
 import json
 import time
+import requests
+from datetime import datetime
+from io import BytesIO
+import subprocess
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-TOKAPI_KEY = os.getenv("TOKAPI_KEY")
-
 TIKTOK_USERNAME = "raddevil76"
+
 MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
 
@@ -102,20 +102,25 @@ def download_and_convert_cover(url):
     return BytesIO(r.content)
 
 
-# --- Fetch TikTok videos via TokAPI ---
-def get_latest_videos():
-    url = f"https://api.tokapi.dev/v1/user/@{TIKTOK_USERNAME}/videos"
+# --- Fetch TikTok profile page and extract SIGI_STATE ---
+def fetch_sigistate():
+    url = f"https://www.tiktok.com/@{TIKTOK_USERNAME}?lang=en"
 
     headers = {
-        "Authorization": f"Bearer {TOKAPI_KEY}",
-        "Accept": "application/json"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": "https://www.tiktok.com/",
     }
 
-    print("\n--- DEBUG: Fetching TokAPI ---")
+    print("\n--- DEBUG: Fetching TikTok Web ---")
     print("URL:", url)
 
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=15)
     except Exception as e:
         print("Request exception:", e)
         append_log("RequestException", str(e))
@@ -124,33 +129,66 @@ def get_latest_videos():
     print("HTTP status:", r.status_code)
 
     if r.status_code != 200:
-        print("TokAPI error:", r.status_code)
+        print("TikTok HTTP error:", r.status_code)
         append_log(r.status_code, r.text)
         return None
 
+    html = r.text
+
+    # Szukamy window['SIGI_STATE'] = {...};
+    m = re.search(r"window
+
+\['SIGI_STATE'\]
+
+\s*=\s*(\{.*?\});", html, re.DOTALL)
+    if not m:
+        print("SIGI_STATE not found in HTML")
+        append_log("NoSIGI_STATE", html[:2000])
+        return None
+
+    sigi_raw = m.group(1)
+
     try:
-        data = r.json()
+        sigi = json.loads(sigi_raw)
     except Exception as e:
-        print("JSON parse error:", e)
-        append_log("JSONDecodeError", r.text)
+        print("SIGI_STATE JSON parse error:", e)
+        append_log("SIGI_JSONError", sigi_raw[:2000])
         return None
 
-    if "videos" not in data:
-        print("No videos in response")
-        append_log("NoVideos", json.dumps(data)[:2000])
+    return sigi
+
+
+# --- Extract videos from SIGI_STATE ---
+def get_latest_videos_from_sigi():
+    sigi = fetch_sigistate()
+    if not sigi:
         return None
 
-    videos = data["videos"]
-    print("--- DEBUG: Found", len(videos), "videos ---")
+    item_module = sigi.get("ItemModule", {})
+    if not isinstance(item_module, dict) or not item_module:
+        print("ItemModule empty or missing")
+        append_log("NoItemModule", json.dumps(sigi)[:2000])
+        return None
 
+    # ItemModule: { videoId: { ... } }
+    videos = list(item_module.values())
+
+    # Sort by createTime (descending)
+    def sort_key(v):
+        return int(v.get("createTime", 0))
+
+    videos.sort(key=sort_key, reverse=True)
+
+    print("--- DEBUG: Found", len(videos), "videos in ItemModule ---")
     return videos
 
 
-# --- Pick best cover from TokAPI video object ---
+# --- Pick best cover from ItemModule video object ---
 def pick_best_cover(video):
-    # TokAPI: video["cover"] or video["origin_cover"]
-    for field in ["cover", "origin_cover"]:
-        url = video.get(field)
+    # TikTok Web: video["video"]["cover"] / "dynamicCover" / "originCover"
+    v = video.get("video", {})
+    for field in ["cover", "dynamicCover", "originCover"]:
+        url = v.get(field)
         if url:
             return url
     return None
@@ -163,16 +201,14 @@ def send_embed(video):
         print("No video ID — skipping")
         return False
 
-    title = video.get("title") or "New TikTok video"
+    title = video.get("desc") or "New TikTok video"
 
     cover_url = pick_best_cover(video)
-
     if cover_url is None:
         print("No valid cover URL — skipping video")
         return False
 
     cover_file = download_and_convert_cover(cover_url)
-
     if cover_file is None:
         print("Cover invalid — skipping this video and NOT saving ID")
         return False
@@ -220,9 +256,9 @@ def main():
     memory_ids = load_memory()
     print("Memory IDs:", memory_ids)
 
-    videos = get_latest_videos()
+    videos = get_latest_videos_from_sigi()
     if not videos:
-        print("No videos returned.")
+        print("No videos returned from SIGI_STATE.")
         return
 
     latest_ids = [v.get("id") for v in videos if v.get("id")]
@@ -236,7 +272,7 @@ def main():
         return
 
     # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
-    for vid in reversed(videos):
+    for vid in videos:
         vid_id = vid.get("id")
         if not vid_id:
             continue
