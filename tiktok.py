@@ -157,7 +157,7 @@ def send_embed(video):
     image_block = {"url": "attachment://cover.jpg"}
 
     # Universal TikTok link — działa zawsze
-    video_url = f"https://www.tiktok.com/video/{video_id}"
+    video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
 
     embed = {
         "embeds": [
