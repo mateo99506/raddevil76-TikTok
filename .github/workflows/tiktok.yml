@@ -22,12 +22,12 @@ jobs:
           touch memory.txt
         fi
 
-    - name: Ensure log.txt exists
+    - name: Ensure api_dump.txt exists
       run: |
         cd repo
-        if [ ! -f log.txt ]; then
-          echo "Creating empty log.txt"
-          touch log.txt
+        if [ ! -f api_dump.txt ]; then
+          echo "Creating empty api_dump.txt"
+          touch api_dump.txt
         fi
 
     - name: Install Python
@@ -59,12 +59,12 @@ jobs:
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
 
-    - name: Commit updated log.txt to repo
+    - name: Commit cleared api_dump.txt separately
       run: |
         cd repo
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add log.txt
-        git commit -m "Update log" || echo "No log changes to commit"
+        git add api_dump.txt
+        git commit -m "Clear api_dump" || echo "Empty api_dump"
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
