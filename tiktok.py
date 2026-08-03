@@ -1,16 +1,19 @@
 import os
+import json
 import requests
 from datetime import datetime
 import subprocess
 from io import BytesIO
-import json
 import time
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-TIKTOK_USER = "raddevil76"
 
 MEMORY_FILE = "memory.txt"
 LOG_FILE = "log.txt"
+API_DUMP_FILE = "api_dump.txt"
+
+# Global — automatycznie wykryty użytkownik
+TIKTOK_USER = "unknown"
 
 
 # --- Ensure memory file exists ---
@@ -40,10 +43,10 @@ def save_memory(ids):
         f.write(",".join(ids))
 
 
-# --- Append log (max 1000 lines) ---
+# --- Append log ---
 def append_log(status, raw_text):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    entry = f"{timestamp} | HTTP status: {status} | Raw response: {raw_text[:2000]}\n"
+    entry = f"{timestamp} | {status} | {raw_text[:2000]}\n"
 
     try:
         with open(LOG_FILE, "r") as f:
@@ -52,7 +55,6 @@ def append_log(status, raw_text):
         lines = []
 
     lines.append(entry)
-
     if len(lines) > 1000:
         lines = lines[-1000:]
 
@@ -60,7 +62,65 @@ def append_log(status, raw_text):
         f.writelines(lines)
 
 
-# --- Download cover and convert HEIC → JPG using ImageMagick ---
+# --- Read API dump instead of requesting TikWM ---
+def get_latest_videos():
+    global TIKTOK_USER
+
+    if not os.path.exists(API_DUMP_FILE):
+        print("ERROR: api_dump.txt not found!")
+        return None
+
+    try:
+        with open(API_DUMP_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print("JSON read error:", e)
+        append_log("JSONReadError", str(e))
+        return None
+
+    if data.get("code") != 0:
+        print("Invalid API dump:", data)
+        append_log("InvalidDump", str(data))
+        return None
+
+    # --- AUTO-DETECT USERNAME ---
+    try:
+        TIKTOK_USER = data["data"]["user"]["unique_id"]
+        print("Detected TikTok user:", TIKTOK_USER)
+    except Exception as e:
+        print("Could not detect TikTok user:", e)
+        TIKTOK_USER = "unknown"
+
+    videos = data["data"]["videos"]
+    print("Loaded", len(videos), "videos from api_dump.txt")
+    return videos
+
+
+# --- Pick best cover ---
+def pick_best_cover(video):
+    fields = ["cover", "origin_cover", "dynamic_cover", "share_cover"]
+    candidates = []
+
+    for field in fields:
+        url = video.get(field)
+        if url:
+            candidates.append(url)
+
+            if url.endswith(".heic"):
+                candidates.append(url.replace(".heic", ".jpg"))
+                candidates.append(url.replace(".heic", ".jpeg"))
+
+    if "images" in video:
+        candidates.extend(video["images"])
+
+    for url in candidates:
+        if url and not url.endswith(".heic"):
+            return url
+
+    return video.get("cover")
+
+
+# --- Download & convert cover ---
 def download_and_convert_cover(url):
     print("Downloading cover:", url)
 
@@ -78,126 +138,44 @@ def download_and_convert_cover(url):
 
     content_type = r.headers.get("Content-Type", "").lower()
 
-    # HEIC → convert via ImageMagick
     if "heic" in content_type or url.endswith(".heic"):
-        print("HEIC detected — converting via ImageMagick")
+        print("HEIC detected — converting")
 
         with open("cover.heic", "wb") as f:
             f.write(r.content)
 
         try:
-            subprocess.run(
-                ["heif-convert", "cover.heic", "cover.jpg"],
-                check=True
-            )
-            print("HEIC converted using heif-convert")
+            subprocess.run(["heif-convert", "cover.heic", "cover.jpg"], check=True)
         except Exception as e:
-            print("heif-convert failed:", e)
+            print("HEIF convert failed:", e)
             append_log("HEIFConvertError", str(e))
             return None
 
         with open("cover.jpg", "rb") as f:
             return BytesIO(f.read())
 
-    # JPG/PNG → return raw bytes
-    print("Cover is already JPG/PNG")
     return BytesIO(r.content)
 
 
-# --- Fetch TikTok videos ---
-def get_latest_videos():
-    api_url = f"https://www.tikwm.com/api/user/posts?unique_id={TIKTOK_USER}&count=12"
-    
-    print("\n--- DEBUG: Fetching TikTok API ---")
-    print("URL:", api_url)
-
-    try:
-        import cloudscraper
-        scraper = cloudscraper.create_scraper()
-        r = scraper.get(api_url, timeout=10)
-    except Exception as e:
-        print("Request exception:", e)
-        append_log("RequestException", str(e))
-        return None
-
-    print("HTTP status:", r.status_code)
-
-    if r.status_code != 200:
-        print("API error:", r.status_code)
-        append_log(r.status_code, r.text)
-        return None
-
-    try:
-        data = r.json()
-    except Exception as e:
-        print("JSON parse error:", e)
-        append_log("JSONDecodeError", r.text)
-        return None
-
-    if data.get("code") != 0:
-        print("TikWM returned error:", data)
-        append_log("TikWMError", str(data))
-        return None
-
-    videos = data["data"]["videos"]
-    print("--- DEBUG: Found", len(videos), "videos ---")
-
-    return videos
-
-# --- Search JPG file ---
-def pick_best_cover(video):
-    candidates = []
-    
-    fields = [
-        "cover",
-        "origin_cover",
-        "dynamic_cover",
-        "share_cover"
-    ]
-
-    for field in fields:
-        url = video.get(field)
-        if url:
-            candidates.append(url)
-
-            if url.endswith(".heic"):
-                jpeg_url = url.replace(".heic", ".jpeg")
-                jpg_url = url.replace(".heic", ".jpg")
-                candidates.append(jpeg_url)
-                candidates.append(jpg_url)
-
-    if "images" in video and isinstance(video["images"], list):
-        for img in video["images"]:
-            candidates.append(img)
-
-    for url in candidates:
-        if url and not url.endswith(".heic"):
-            return url
-
-    return video.get("cover")
-
-# --- Send Discord embed with local JPG file ---
+# --- Send Discord embed ---
 def send_embed(video):
     video_id = video["video_id"]
     title = video["title"]
 
-    # FIX: cover URL is already absolute
     cover_url = pick_best_cover(video)
-
-    if cover_url is None:
-        print("All cover formats are HEIC — skipping video")
+    if not cover_url:
+        print("No valid cover")
         return False
 
     cover_file = download_and_convert_cover(cover_url)
-
-    if cover_file is None:
-        print("Cover invalid — skipping this video and NOT saving ID")
+    if not cover_file:
         return False
 
     files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
     image_block = {"url": "attachment://cover.jpg"}
-    
-    video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
+
+    # Universal TikTok link — działa zawsze
+    video_url = f"https://www.tiktok.com/video/{video_id}"
 
     embed = {
         "embeds": [
@@ -211,8 +189,6 @@ def send_embed(video):
         ]
     }
 
-    print("Sending embed:", embed)
-
     resp = requests.post(
         WEBHOOK_URL,
         data={"payload_json": json.dumps(embed)},
@@ -222,52 +198,34 @@ def send_embed(video):
     print("Discord status:", resp.status_code)
     print("Discord response:", resp.text)
 
-    if resp.status_code not in (200, 204):
-        print("Discord rejected message — NOT saving ID")
-        return False
+    return resp.status_code in (200, 204)
 
-    return True
 
 # --- Main ---
 def main():
     ensure_memory_file()
-
     memory_ids = load_memory()
-    print("Memory IDs:", memory_ids)
 
     videos = get_latest_videos()
     if not videos:
-        print("No videos returned.")
+        print("No videos loaded.")
         return
 
     latest_ids = [v["video_id"] for v in videos]
-    print("Latest IDs:", latest_ids)
-
     new_ids = [vid for vid in latest_ids if vid not in memory_ids]
+
     print("Found", len(new_ids), "new videos.")
 
-    if not new_ids:
-        print("No new videos.")
-        return
-
-    # --- SEND ALL NEW VIDEOS WITH 2-SECOND DELAY ---
     for vid in reversed(videos):
         if vid["video_id"] in new_ids:
             if send_embed(vid):
-                print("Waiting 2 seconds before next message...")
                 time.sleep(2)
-            else:
-                print("Skipping video — cover invalid, not saving ID")
-                continue
 
-    # Update memory
     memory_ids.extend(new_ids)
-    
-    if len(memory_ids) > 100:
-        memory_ids = memory_ids[-100:]
-    
+    memory_ids = memory_ids[-100:]
     save_memory(memory_ids)
-    print("Memory updated (max 100 entries).")
+
+    print("Memory updated.")
 
 
 if __name__ == "__main__":
