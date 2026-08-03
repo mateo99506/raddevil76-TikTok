@@ -49,15 +49,21 @@ jobs:
         cd repo
         python3 tiktok.py
 
-    - name: Commit updated memory.txt to repo
+    - name: Commit updated memory.txt
       run: |
         cd repo
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add memory.txt
-        git commit -m "Update memory" || echo "No changes to commit"
+        git commit -m "Update memory" || echo "No changes to memory"
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
-        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
+        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main || true
+
+    - name: Clear api_dump.txt after run
+      run: |
+        cd repo
+        echo -n "" > api_dump.txt
+        echo "api_dump.txt has been cleared."
 
     - name: Commit cleared api_dump.txt separately
       run: |
@@ -67,4 +73,4 @@ jobs:
         git add api_dump.txt
         git commit -m "Clear api_dump" || echo "Empty api_dump"
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
-        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
+        git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main || true
