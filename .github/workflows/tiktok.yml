@@ -59,11 +59,12 @@ jobs:
         git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git main || true
         git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main || true
 
-    - name: Clear api_dump.txt after run
+    - name: Reset api_dump.txt with template
       run: |
         cd repo
-        echo -n "" > api_dump.txt
-        echo "api_dump.txt has been cleared."
+        echo "https://www.tikwm.com/api/user/posts?unique_id=USER&count=AMOUNT" > api_dump.txt
+        echo "" >> api_dump.txt
+        echo "api_dump.txt has been reset with template."
 
     - name: Commit cleared api_dump.txt separately
       run: |
