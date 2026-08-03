@@ -9,10 +9,9 @@ import time
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 
 MEMORY_FILE = "memory.txt"
-LOG_FILE = "log.txt"
 API_DUMP_FILE = "api_dump.txt"
 
-# Global — automatycznie wykryty użytkownik
+# Global
 TIKTOK_USER = "unknown"
 
 
@@ -43,25 +42,6 @@ def save_memory(ids):
         f.write(",".join(ids))
 
 
-# --- Append log ---
-def append_log(status, raw_text):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    entry = f"{timestamp} | {status} | {raw_text[:2000]}\n"
-
-    try:
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-    except FileNotFoundError:
-        lines = []
-
-    lines.append(entry)
-    if len(lines) > 1000:
-        lines = lines[-1000:]
-
-    with open(LOG_FILE, "w") as f:
-        f.writelines(lines)
-
-
 # --- Read API dump instead of requesting TikWM ---
 def get_latest_videos():
     global TIKTOK_USER
@@ -75,12 +55,10 @@ def get_latest_videos():
             data = json.load(f)
     except Exception as e:
         print("JSON read error:", e)
-        append_log("JSONReadError", str(e))
         return None
 
     if data.get("code") != 0:
         print("Invalid API dump:", data)
-        append_log("InvalidDump", str(data))
         return None
 
     # --- AUTO-DETECT USERNAME ---
@@ -128,12 +106,10 @@ def download_and_convert_cover(url):
         r = requests.get(url, timeout=10)
     except Exception as e:
         print("Cover download error:", e)
-        append_log("CoverDownloadError", str(e))
         return None
 
     if r.status_code != 200:
         print("Cover HTTP error:", r.status_code)
-        append_log(r.status_code, r.text)
         return None
 
     content_type = r.headers.get("Content-Type", "").lower()
@@ -148,7 +124,6 @@ def download_and_convert_cover(url):
             subprocess.run(["heif-convert", "cover.heic", "cover.jpg"], check=True)
         except Exception as e:
             print("HEIF convert failed:", e)
-            append_log("HEIFConvertError", str(e))
             return None
 
         with open("cover.jpg", "rb") as f:
