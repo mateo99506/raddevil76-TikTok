@@ -61,16 +61,23 @@ def get_latest_videos():
         print("Invalid API dump:", data)
         return None
 
-    # --- AUTO-DETECT USERNAME ---
-    try:
-        TIKTOK_USER = data["data"]["user"]["unique_id"]
-        print("Detected TikTok user:", TIKTOK_USER)
-    except Exception as e:
-        print("Could not detect TikTok user:", e)
-        TIKTOK_USER = "unknown"
-
     videos = data["data"]["videos"]
     print("Loaded", len(videos), "videos from api_dump.txt")
+
+    # --- AUTO-DETECT USERNAME (new universal logic) ---
+    try:
+        # First attempt: TikWM sometimes provides user info here
+        TIKTOK_USER = data["data"]["user"]["unique_id"]
+        print("Detected TikTok user (from data.user):", TIKTOK_USER)
+    except:
+        try:
+            # Fallback: author info inside first video
+            TIKTOK_USER = videos[0]["author"]["unique_id"]
+            print("Detected TikTok user (from video.author):", TIKTOK_USER)
+        except Exception as e:
+            print("Could not detect TikTok user:", e)
+            TIKTOK_USER = "unknown"
+
     return videos
 
 
