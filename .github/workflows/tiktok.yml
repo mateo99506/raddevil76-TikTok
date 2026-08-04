@@ -30,18 +30,13 @@ jobs:
           touch api_dump.txt
         fi
 
-    - name: Install Python
+    - name: Install Python + HEIF tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 python3-pip imagemagick libheif1 libheif-dev libheif-examples
+        sudo apt-get install -y python3 python3-pip libheif1 libheif-dev libheif-examples
         python3 -m pip install --upgrade pip
         python3 -m pip install requests cloudscraper
 
-    - name: Install HEIF support
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libheif1 libheif-dev libheif-examples
-    
     - name: Run TikTok scraper
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -62,7 +57,7 @@ jobs:
     - name: Reset api_dump.txt with template
       run: |
         cd repo
-        echo "https://www.tikwm.com/api/user/posts?unique_id=USER&count=AMOUNT" > api_dump.txt
+        echo "https://www.tikwm.com/api/user/posts?unique_id=raddevil76&count=32 " > api_dump.txt
         echo "" >> api_dump.txt
         echo "api_dump.txt has been reset with template."
 
