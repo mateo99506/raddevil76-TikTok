@@ -64,14 +64,12 @@ def get_latest_videos():
     videos = data["data"]["videos"]
     print("Loaded", len(videos), "videos from api_dump.txt")
 
-    # --- AUTO-DETECT USERNAME (new universal logic) ---
+    # --- AUTO-DETECT USERNAME ---
     try:
-        # First attempt: TikWM sometimes provides user info here
         TIKTOK_USER = data["data"]["user"]["unique_id"]
         print("Detected TikTok user (from data.user):", TIKTOK_USER)
     except:
         try:
-            # Fallback: author info inside first video
             TIKTOK_USER = videos[0]["author"]["unique_id"]
             print("Detected TikTok user (from video.author):", TIKTOK_USER)
         except Exception as e:
@@ -151,12 +149,12 @@ def send_embed(video):
 
     cover_file = download_and_convert_cover(cover_url)
     if not cover_file:
+        print("Cover conversion failed — skipping video")
         return False
 
     files = {"file": ("cover.jpg", cover_file, "image/jpeg")}
     image_block = {"url": "attachment://cover.jpg"}
 
-    # Universal TikTok link — działa zawsze
     video_url = f"https://www.tiktok.com/@{TIKTOK_USER}/video/{video_id}"
 
     embed = {
@@ -198,12 +196,17 @@ def main():
 
     print("Found", len(new_ids), "new videos.")
 
+    successful_ids = []
+
     for vid in reversed(videos):
-        if vid["video_id"] in new_ids:
+        vid_id = vid["video_id"]
+        if vid_id in new_ids:
             if send_embed(vid):
+                successful_ids.append(vid_id)
                 time.sleep(2)
 
-    memory_ids.extend(new_ids)
+    # Save ONLY successful IDs
+    memory_ids.extend(successful_ids)
     memory_ids = memory_ids[-100:]
     save_memory(memory_ids)
 
